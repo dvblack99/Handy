@@ -203,9 +203,9 @@ animation: spin 1s linear infinite;
 
 <!-- MediaPipe -->
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1632090399/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@mediapipe/camera_utils@0.3.1632090399/camera_utils.js" crossorigin="anonymous"></script>
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -568,7 +568,7 @@ async function initHandTracking() {
   loadMsg.textContent = 'Loading MediaPipe Hands…';
 
   mpHands = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
+    locateFile: (file) => `https://unpkg.com/@mediapipe/hands@0.4.1646424915/${file}`
   });
 
   mpHands.setOptions({
