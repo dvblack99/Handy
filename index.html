@@ -228,8 +228,6 @@ z-index: 201; touch-action: manipulation;
 
 <script src="https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
 
-<script src="https://unpkg.com/@mediapipe/camera_utils@0.3.1632090399/camera_utils.js" crossorigin="anonymous"></script>
-
 <script>
 // ═══════════════════════════════════════════════════════════
 //  CONFIG
@@ -687,14 +685,17 @@ async function startCamera() {
     camDot.className = 'status-dot active';
     document.getElementById('cam-label').textContent = 'Camera: on ✓';
 
-    // Start MP camera loop
-    const camera = new Camera(camVideo, {
-      onFrame: async () => {
-        if (mpHands) await mpHands.send({ image: camVideo });
-      },
-      width: 640, height: 480,
-    });
-    camera.start();
+    // Manual frame loop — no camera_utils dependency
+    let running = true;
+    async function frameLoop() {
+      if (!running) return;
+      if (camVideo.readyState >= 2 && mpHands) {
+        await mpHands.send({ image: camVideo });
+      }
+      requestAnimationFrame(frameLoop);
+    }
+    frameLoop();
+    dbgOk('Frame loop started');
 
     loadDiv.classList.add('hidden');
   } catch(e) {
