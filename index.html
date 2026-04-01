@@ -119,7 +119,7 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
 </div>
 
 <div id="video-overlay">
-  <video id="full-video" playsinline controls></video>
+  <video id="full-video" playsinline></video>
   <button id="close-video">✕</button>
 </div>
 
@@ -323,14 +323,18 @@ function render(ts) {
       ctx.restore();
     }
 
-    // label
+    // label — truncated with ellipsis, anchored to bottom of tile
     ctx.save();
-    const fs=Math.min(tile.w/8,24);
+    const fs=Math.min(tile.w/9,22);
     ctx.fillStyle=hov?'#fff':'#c8c0f0';
     ctx.font=`${hov?700:600} ${fs}px 'Segoe UI',system-ui,sans-serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.shadowColor='rgba(0,0,0,.85)'; ctx.shadowBlur=8;
-    ctx.fillText(tile.label,tile.x+tile.w/2,tile.y+tile.h/2,tile.w-16);
+    ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=10;
+    const maxLabelW=tile.w-20;
+    let label=tile.label;
+    while(label.length>3&&ctx.measureText(label).width>maxLabelW) label=label.slice(0,-1);
+    if(label!==tile.label) label=label.slice(0,-1)+'…';
+    ctx.fillText(label,tile.x+tile.w/2,tile.y+tile.h-fs-8);
     ctx.restore();
 
     // dwell ring
@@ -448,21 +452,34 @@ function selectTile(tile){
 // ── VIDEO PLAYER ──────────────────────────────────────────────
 function playVideo(src,name){
   if(!src){flashMsg(`No file for "${name}" yet`);return;}
+  // Reset cleanly before setting new src
+  fullVideo.pause();
+  fullVideo.removeAttribute('src');
+  fullVideo.load();
   fullVideo.src=src;
   videoOverlay.classList.add('show');
-  fullVideo.play().catch(e=>dbgErr('Play: '+e.message));
+  // Autoplay as soon as enough is loaded
+  fullVideo.addEventListener('canplay', function handler(){
+    fullVideo.removeEventListener('canplay',handler);
+    fullVideo.play().catch(e=>dbgErr('Play: '+e.message));
+  });
+  // Fullscreen
   const el=videoOverlay;
   if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
   else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
 }
+
 function closeVideoPlayer(){
-  fullVideo.pause(); fullVideo.src='';
+  fullVideo.pause();
+  fullVideo.removeAttribute('src');
+  fullVideo.load();
   videoOverlay.classList.remove('show');
   if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   else if(document.webkitFullscreenElement) document.webkitExitFullscreen();
+  dbgOk('Video closed, returning to tiles');
 }
-fullVideo.addEventListener('ended',closeVideoPlayer);
-closeVideoBtn.addEventListener('click',closeVideoPlayer);
+fullVideo.addEventListener('ended', closeVideoPlayer);
+closeVideoBtn.addEventListener('click', closeVideoPlayer);
 
 // ── MEDIAPIPE ─────────────────────────────────────────────────
 let mpHands=null;
