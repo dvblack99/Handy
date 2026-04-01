@@ -152,10 +152,33 @@ animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 #load-msg { color: var(–muted); font-size: 1.1rem; }
+
+/* Debug panel */
+#debug {
+position: fixed; bottom: 0; left: 0; right: 0;
+background: rgba(0,0,0,.88);
+color: #4fffb0; font-family: monospace; font-size: 13px;
+padding: 8px 12px; z-index: 200;
+max-height: 180px; overflow-y: auto;
+display: none; border-top: 1px solid #333;
+}
+#debug.visible { display: block; }
+#debug-toggle {
+position: fixed; bottom: 8px; right: 8px;
+background: rgba(0,0,0,.7); color: #aaa;
+border: 1px solid #444; border-radius: 6px;
+padding: 6px 12px; font-size: 12px; cursor: pointer;
+z-index: 201; touch-action: manipulation;
+}
 </style>
 
 </head>
 <body>
+
+<!-- DEBUG PANEL -->
+
+<div id="debug"></div>
+<button id="debug-toggle">🐛 Debug</button>
 
 <!-- PERMISSION SCREEN -->
 
@@ -223,8 +246,33 @@ const CFG = {
 };
 
 // ═══════════════════════════════════════════════════════════
-//  STATE
+//  DEBUG LOGGING
 // ═══════════════════════════════════════════════════════════
+const debugEl = document.getElementById('debug');
+const debugToggle = document.getElementById('debug-toggle');
+debugToggle.addEventListener('click', () => debugEl.classList.toggle('visible'));
+
+function dbg(msg, color) {
+  const line = document.createElement('div');
+  const t = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  line.style.color = color || '#4fffb0';
+  line.textContent = `[${t}] ${msg}`;
+  debugEl.appendChild(line);
+  debugEl.scrollTop = debugEl.scrollHeight;
+  // Keep max 40 lines
+  while (debugEl.children.length > 40) debugEl.removeChild(debugEl.firstChild);
+}
+function dbgErr(msg) { dbg('❌ ' + msg, '#ff6a6a'); }
+function dbgWarn(msg) { dbg('⚠️ ' + msg, '#ffb84f'); }
+function dbgOk(msg) { dbg('✓ ' + msg, '#4fffb0'); }
+
+// Override console.error/warn to also show in panel
+const _ce = console.error.bind(console);
+console.error = (...a) => { _ce(...a); dbgErr(a.join(' ')); };
+const _cw = console.warn.bind(console);
+console.warn = (...a) => { _cw(...a); dbgWarn(a.join(' ')); };
+
+
 const state = {
   cx: 0.5, cy: 0.5,       // raw hand pos (0–1)
   sx: 0.5, sy: 0.5,       // smoothed cursor pos (0–1)
@@ -566,6 +614,7 @@ let mpHands = null;
 
 async function initHandTracking() {
   loadMsg.textContent = 'Loading MediaPipe Hands…';
+  dbg('Loading MediaPipe Hands…');
 
   mpHands = new Hands({
     locateFile: (file) => `https://unpkg.com/@mediapipe/hands@0.4.1646424915/${file}`
@@ -582,8 +631,10 @@ async function initHandTracking() {
 
   try {
     await mpHands.initialize();
+    dbgOk('MediaPipe initialized');
   } catch(e) {
     loadMsg.textContent = 'Hand tracker failed – using mouse fallback';
+    dbgErr('MediaPipe init failed: ' + e.message);
     console.warn('MediaPipe init failed:', e);
     loadDiv.classList.add('hidden');
     enableMouseFallback();
@@ -597,12 +648,9 @@ async function initHandTracking() {
 function onHandResults(results) {
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
     const lm = results.multiHandLandmarks[0];
-    // Use wrist (0) and middle finger MCP (9) for stable palm center
     const palmX = (lm[0].x + lm[9].x) / 2;
     const palmY = (lm[0].y + lm[9].y) / 2;
-
-    // MediaPipe front-cam coords: x=0 left, x=1 right (already mirrored by MP for selfie)
-    // Map center offset → cursor offset
+    if (!state.handVisible) dbgOk(`Hand detected — palm (${palmX.toFixed(2)}, ${palmY.toFixed(2)})`);
     const offsetX = (palmX - 0.5) * CFG.sensitivity;
     const offsetY = (palmY - 0.5) * CFG.sensitivity;
 
@@ -635,7 +683,7 @@ async function startCamera() {
     camVideo.srcObject = stream;
     await new Promise(res => camVideo.onloadedmetadata = res);
     camVideo.play();
-
+    dbgOk('Camera stream started');
     camDot.className = 'status-dot active';
     document.getElementById('cam-label').textContent = 'Camera: on ✓';
 
@@ -650,6 +698,7 @@ async function startCamera() {
 
     loadDiv.classList.add('hidden');
   } catch(e) {
+    dbgErr('Camera error: ' + e.name + ' – ' + e.message);
     console.error('Camera error:', e);
     loadMsg.textContent = 'Camera denied – using mouse fallback';
     setTimeout(() => loadDiv.classList.add('hidden'), 2000);
@@ -760,7 +809,7 @@ startBtn.addEventListener('click', async () => {
 
   resize();
   window.addEventListener('resize', resize);
-
+  dbgOk('App started');
   requestAnimationFrame(render);
   await initHandTracking();
 });
