@@ -8,123 +8,128 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 :root { --bg:#0a0a12; --surface:#14142a; --accent:#7c6aff; --green:#4fffb0; --red:#ff6a6a; --text:#f0eeff; --muted:#7870aa; }
-body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; padding:24px; }
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; padding:20px; }
 
-h1 { font-size:1.8rem; font-weight:900; margin-bottom:4px; }
-.subtitle { color:var(–muted); font-size:.9rem; margin-bottom:28px; }
+h1 { font-size:1.7rem; font-weight:900; margin-bottom:3px; }
+.subtitle { color:var(–muted); font-size:.85rem; margin-bottom:24px; }
 
-.card { background:var(–surface); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:24px; margin-bottom:20px; }
-.card h2 { font-size:1.1rem; font-weight:700; margin-bottom:16px; color:var(–text); }
+.card { background:var(–surface); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:20px; margin-bottom:18px; }
+.card h2 { font-size:1rem; font-weight:700; margin-bottom:14px; }
 
-/* Drop zone */
-#drop-zone {
-border:2px dashed rgba(124,106,255,.4); border-radius:12px;
-padding:40px 20px; text-align:center; cursor:pointer;
-transition:all .2s; margin-bottom:16px;
-}
-#drop-zone:hover, #drop-zone.drag-over {
-border-color:var(–accent); background:rgba(124,106,255,.08);
-}
-#drop-zone .icon { font-size:3rem; margin-bottom:12px; }
-#drop-zone p { color:var(–muted); font-size:.95rem; }
+#drop-zone { border:2px dashed rgba(124,106,255,.35); border-radius:12px;
+padding:36px 20px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:14px; }
+#drop-zone:hover, #drop-zone.drag-over { border-color:var(–accent); background:rgba(124,106,255,.08); }
+#drop-zone .icon { font-size:2.5rem; margin-bottom:10px; }
+#drop-zone p { color:var(–muted); font-size:.9rem; line-height:1.5; }
 #drop-zone strong { color:var(–text); }
 #file-input { display:none; }
 
-/* Upload queue */
-#queue { display:flex; flex-direction:column; gap:10px; }
-.queue-item {
-background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06);
-border-radius:10px; padding:12px 16px;
-}
-.qi-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-.qi-name { flex:1; font-size:.9rem; font-weight:600; word-break:break-all; }
-.qi-size { color:var(–muted); font-size:.8rem; flex-shrink:0; }
-.qi-status { font-size:.8rem; flex-shrink:0; }
-.qi-name-edit {
-width:100%; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
-border-radius:8px; padding:6px 10px; color:var(–text); font-size:.85rem;
-margin-bottom:8px;
-}
-.progress-bar { height:4px; background:rgba(255,255,255,.1); border-radius:2px; overflow:hidden; }
-.progress-fill { height:100%; background:var(–accent); border-radius:2px; width:0%; transition:width .3s; }
+#queue { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+
+.queue-item { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+border-radius:10px; padding:12px 14px; }
+.qi-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+.qi-name { flex:1; font-size:.85rem; font-weight:600; word-break:break-all; min-width:0; }
+.qi-size { color:var(–muted); font-size:.75rem; flex-shrink:0; }
+.qi-status { font-size:.75rem; flex-shrink:0; }
+.qi-name-edit { width:100%; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
+border-radius:8px; padding:6px 10px; color:var(–text); font-size:.82rem; margin-bottom:8px; }
+.qi-name-edit:focus { outline:none; border-color:var(–accent); }
+.progress-bar { height:5px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; background:var(–accent); border-radius:3px; width:0%; transition:width .2s; }
 .progress-fill.done { background:var(–green); }
 .progress-fill.err  { background:var(–red); }
 
-#upload-all-btn {
-width:100%; padding:14px; background:var(–accent); color:#fff;
-border:none; border-radius:12px; font-size:1rem; font-weight:700;
-cursor:pointer; margin-top:8px; transition:opacity .2s;
-}
-#upload-all-btn:disabled { opacity:.4; cursor:not-allowed; }
+#upload-all-btn { width:100%; padding:14px; background:var(–accent); color:#fff;
+border:none; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer; transition:opacity .2s; }
+#upload-all-btn:disabled { opacity:.35; cursor:not-allowed; }
 
-/* Video list */
+/* Status check */
+#php-status { font-size:.8rem; padding:8px 12px; border-radius:8px; margin-bottom:14px;
+background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); color:var(–muted); }
+#php-status.ok  { border-color:rgba(79,255,176,.3); color:var(–green); background:rgba(79,255,176,.08); }
+#php-status.err { border-color:rgba(255,106,106,.3); color:var(–red); background:rgba(255,106,106,.08); }
+
+/* Library */
 #video-list { display:flex; flex-direction:column; gap:8px; }
-.vl-item {
-display:flex; align-items:center; gap:12px;
-background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06);
-border-radius:10px; padding:10px 14px;
-}
-.vl-thumb { width:80px; height:45px; border-radius:6px; object-fit:cover; background:#111; flex-shrink:0; }
+.vl-item { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.04);
+border:1px solid rgba(255,255,255,.06); border-radius:10px; padding:10px 12px; }
+.vl-thumb { width:72px; height:41px; border-radius:6px; object-fit:cover; background:#111; flex-shrink:0; }
 .vl-info { flex:1; min-width:0; }
-.vl-name { font-size:.9rem; font-weight:600; }
-.vl-file { font-size:.75rem; color:var(–muted); margin-top:2px; word-break:break-all; }
-.vl-del {
-background:none; border:1px solid rgba(255,100,100,.3); color:var(–red);
-padding:5px 10px; border-radius:8px; cursor:pointer; font-size:.8rem;
-flex-shrink:0; transition:all .2s;
-}
-.vl-del:hover { background:rgba(255,100,100,.1); }
-.vl-empty { color:var(–muted); font-size:.9rem; text-align:center; padding:20px; }
+.vl-name { font-size:.85rem; font-weight:600; }
+.vl-file { font-size:.72rem; color:var(–muted); margin-top:2px; word-break:break-all; }
+.vl-del { background:none; border:1px solid rgba(255,100,100,.3); color:var(–red);
+padding:5px 9px; border-radius:7px; cursor:pointer; font-size:.75rem; flex-shrink:0; }
+.vl-empty { color:var(–muted); font-size:.85rem; text-align:center; padding:20px; }
 
-/* Alerts */
-.alert { padding:12px 16px; border-radius:10px; margin-bottom:12px; font-size:.9rem; }
-.alert.ok  { background:rgba(79,255,176,.12); border:1px solid rgba(79,255,176,.3); color:var(–green); }
-.alert.err { background:rgba(255,106,106,.12); border:1px solid rgba(255,106,106,.3); color:var(–red); }
+.alert { padding:11px 14px; border-radius:10px; margin-bottom:12px; font-size:.85rem; }
+.alert.ok  { background:rgba(79,255,176,.1); border:1px solid rgba(79,255,176,.3); color:var(–green); }
+.alert.err { background:rgba(255,106,106,.1); border:1px solid rgba(255,106,106,.3); color:var(–red); }
 
-a.back-link { color:var(–accent); text-decoration:none; font-size:.9rem; display:inline-block; margin-bottom:20px; }
-a.back-link:hover { text-decoration:underline; }
+a.back { color:var(–accent); text-decoration:none; font-size:.85rem; display:inline-block; margin-bottom:18px; }
+.refresh-btn { background:none; border:1px solid rgba(255,255,255,.14); color:var(–muted);
+padding:3px 9px; border-radius:7px; cursor:pointer; font-size:.72rem; margin-left:8px; }
 </style>
 
 </head>
 <body>
 
-<a href="./" class="back-link">← Back to HandCam</a>
+<a href="./" class="back">← Back to HandCam</a>
 
 <h1>📁 HandCam Admin</h1>
-<p class="subtitle">Upload and manage videos for the hand controller</p>
+<p class="subtitle">Upload and manage videos</p>
 
 <div id="alert-area"></div>
+<div id="php-status">Checking server…</div>
 
-<!-- UPLOAD CARD -->
+<!-- UPLOAD -->
 
 <div class="card">
   <h2>Upload Videos</h2>
   <div id="drop-zone">
     <div class="icon">🎬</div>
-    <p><strong>Tap to choose videos</strong><br>or drag and drop here</p>
-    <input type="file" id="file-input" accept="video/*" multiple>
+    <p><strong>Tap to choose videos</strong><br>or drag and drop here<br><span style="font-size:.8rem;margin-top:6px;display:block">MP4, MOV, WEBM up to 500MB</span></p>
+    <input type="file" id="file-input" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo,video/*" multiple>
   </div>
   <div id="queue"></div>
-  <button id="upload-all-btn" disabled>Upload All</button>
+  <button id="upload-all-btn" disabled>Choose videos first</button>
 </div>
 
-<!-- VIDEO LIBRARY CARD -->
+<!-- LIBRARY -->
 
 <div class="card">
-  <h2>Video Library <button id="refresh-btn" style="background:none;border:1px solid rgba(255,255,255,.15);color:var(--muted);padding:3px 10px;border-radius:8px;cursor:pointer;font-size:.75rem;margin-left:8px">↻ Refresh</button></h2>
+  <h2>Video Library <button class="refresh-btn" id="refresh-btn">↻ Refresh</button></h2>
   <div id="video-list"><div class="vl-empty">Loading…</div></div>
 </div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────────
-// Upload endpoint — matches the PHP script at upload.php
 const UPLOAD_URL = 'upload.php';
 const INDEX_URL  = 'videos/index.json';
 
-// ── STATE ─────────────────────────────────────────────────────
-let queue = []; // {file, displayName, status, progress}
+let queue = [];
+let readyCount = 0; // files fully loaded into browser
 
-// ── DROP ZONE ─────────────────────────────────────────────────
+// ── SERVER STATUS CHECK ──────────────────────────────────────
+async function checkServer() {
+  const el = document.getElementById('php-status');
+  try {
+    const r = await fetch(UPLOAD_URL + '?t=' + Date.now());
+    const d = await r.json();
+    if (d.ok) {
+      el.className = 'ok';
+      el.textContent = `✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library, videos folder ${d.writable?'writable':'NOT WRITABLE ⚠️'}`;
+      if (!d.writable) showAlert('Videos folder is not writable. Run: chmod 777 /root/mysite/html/handy/videos', 'err');
+    } else {
+      el.className = 'err';
+      el.textContent = '❌ Server error: ' + JSON.stringify(d);
+    }
+  } catch(e) {
+    el.className = 'err';
+    el.textContent = '❌ Cannot reach upload.php — PHP may not be configured';
+  }
+}
+
+// ── DROP ZONE ────────────────────────────────────────────────
 const dropZone  = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const queueEl   = document.getElementById('queue');
@@ -132,7 +137,6 @@ const uploadBtn = document.getElementById('upload-all-btn');
 
 dropZone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', e => addFiles(Array.from(e.target.files)));
-
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => {
@@ -145,14 +149,53 @@ function addFiles(files) {
     const item = {
       file: f,
       displayName: f.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
-      status: 'pending',
+      status: 'loading', // loading → pending → uploading → done/error
       progress: 0,
-      id: Date.now() + Math.random(),
+      id: Date.now() + '_' + Math.random().toString(36).slice(2),
     };
     queue.push(item);
     renderQueueItem(item);
+    checkFileReady(item);
   });
-  uploadBtn.disabled = queue.filter(i => i.status === 'pending').length === 0;
+  updateUploadBtn();
+}
+
+function checkFileReady(item) {
+  // Read a tiny slice to confirm the file is accessible/not still buffering
+  const statusEl = document.getElementById('qs-' + item.id);
+  if (statusEl) statusEl.textContent = '⏳ Loading…';
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    item.status = 'pending';
+    if (statusEl) statusEl.textContent = '✓ Ready';
+    updateUploadBtn();
+  };
+  reader.onerror = () => {
+    item.status = 'error';
+    if (statusEl) statusEl.textContent = '❌ Read error';
+    updateUploadBtn();
+  };
+  // Read just the first 64KB to verify accessibility
+  reader.readAsArrayBuffer(item.file.slice(0, 65536));
+}
+
+function updateUploadBtn() {
+  const loading = queue.filter(i => i.status === 'loading').length;
+  const pending = queue.filter(i => i.status === 'pending').length;
+  if (loading > 0) {
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = `⏳ Loading ${loading} file${loading>1?'s':''}…`;
+  } else if (pending > 0) {
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = `Upload ${pending} video${pending>1?'s':''}`;
+  } else if (queue.length > 0) {
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'All uploaded ✓';
+  } else {
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Choose videos first';
+  }
 }
 
 function renderQueueItem(item) {
@@ -163,7 +206,7 @@ function renderQueueItem(item) {
     <div class="qi-header">
       <span class="qi-name">${item.file.name}</span>
       <span class="qi-size">${(item.file.size/1024/1024).toFixed(1)} MB</span>
-      <span class="qi-status" id="qs-${item.id}">⏳ Pending</span>
+      <span class="qi-status" id="qs-${item.id}">⏳ Loading…</span>
     </div>
     <input class="qi-name-edit" type="text" value="${item.displayName}" placeholder="Display name…" id="qn-${item.id}">
     <div class="progress-bar"><div class="progress-fill" id="qp-${item.id}"></div></div>
@@ -176,47 +219,55 @@ function renderQueueItem(item) {
 uploadBtn.addEventListener('click', async () => {
   uploadBtn.disabled = true;
   const pending = queue.filter(i => i.status === 'pending');
-  for (const item of pending) {
-    await uploadItem(item);
-  }
+  for (const item of pending) await uploadItem(item);
   await refreshLibrary();
-  showAlert('All uploads complete!', 'ok');
+  await checkServer();
+  showAlert(`✅ ${pending.length} video${pending.length>1?'s':''} uploaded successfully!`, 'ok');
+  updateUploadBtn();
 });
 
 function uploadItem(item) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     item.status = 'uploading';
-    document.getElementById('qs-' + item.id).textContent = '⬆️ Uploading…';
+    const statusEl = document.getElementById('qs-' + item.id);
+    if (statusEl) statusEl.textContent = '⬆️ 0%';
 
     const fd = new FormData();
     fd.append('video', item.file);
-    fd.append('name', item.displayName);
+    fd.append('name', item.displayName || item.file.name.replace(/\.[^.]+$/,''));
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', UPLOAD_URL);
 
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) {
-        item.progress = e.loaded / e.total;
-        const pct = Math.round(item.progress * 100);
+        const pct = Math.round(e.loaded / e.total * 100);
         const bar = document.getElementById('qp-' + item.id);
-        if (bar) { bar.style.width = pct + '%'; }
-        document.getElementById('qs-' + item.id).textContent = `⬆️ ${pct}%`;
+        if (bar) bar.style.width = pct + '%';
+        if (statusEl) statusEl.textContent = `⬆️ ${pct}%`;
       }
     };
 
     xhr.onload = () => {
       const bar = document.getElementById('qp-' + item.id);
-      const statusEl = document.getElementById('qs-' + item.id);
       if (xhr.status === 200) {
-        item.status = 'done';
-        if (bar) { bar.style.width = '100%'; bar.classList.add('done'); }
-        if (statusEl) statusEl.textContent = '✅ Done';
+        let resp;
+        try { resp = JSON.parse(xhr.responseText); } catch(e) { resp = {}; }
+        if (resp.ok) {
+          item.status = 'done';
+          if (bar) { bar.style.width='100%'; bar.classList.add('done'); }
+          if (statusEl) statusEl.textContent = '✅ Done';
+        } else {
+          item.status = 'error';
+          if (bar) bar.classList.add('err');
+          if (statusEl) statusEl.textContent = '❌ ' + (resp.error||'Failed');
+          showAlert('Upload error: ' + (resp.error||xhr.responseText), 'err');
+        }
       } else {
         item.status = 'error';
         if (bar) bar.classList.add('err');
-        if (statusEl) statusEl.textContent = '❌ Failed';
-        showAlert('Upload failed: ' + xhr.responseText, 'err');
+        if (statusEl) statusEl.textContent = '❌ HTTP ' + xhr.status;
+        showAlert('Server error ' + xhr.status + ': ' + xhr.responseText, 'err');
       }
       resolve();
     };
@@ -224,7 +275,7 @@ function uploadItem(item) {
     xhr.onerror = () => {
       item.status = 'error';
       const statusEl = document.getElementById('qs-' + item.id);
-      if (statusEl) statusEl.textContent = '❌ Error';
+      if (statusEl) statusEl.textContent = '❌ Network error';
       showAlert('Network error uploading ' + item.file.name, 'err');
       resolve();
     };
@@ -240,9 +291,9 @@ async function refreshLibrary() {
   const listEl = document.getElementById('video-list');
   try {
     const r = await fetch(INDEX_URL + '?t=' + Date.now());
-    if (!r.ok) throw new Error('No library yet');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     const videos = await r.json();
-    if (!videos.length) { listEl.innerHTML = '<div class="vl-empty">No videos uploaded yet.</div>'; return; }
+    if (!videos.length) { listEl.innerHTML = '<div class="vl-empty">No videos yet. Upload one above.</div>'; return; }
     listEl.innerHTML = '';
     videos.forEach(v => {
       const el = document.createElement('div');
@@ -253,29 +304,30 @@ async function refreshLibrary() {
           <div class="vl-name">${v.name}</div>
           <div class="vl-file">${v.file}</div>
         </div>
-        <button class="vl-del" data-file="${v.file}">🗑 Delete</button>
+        <button class="vl-del" data-file="${v.file}">🗑</button>
       `;
       listEl.appendChild(el);
     });
     listEl.querySelectorAll('.vl-del').forEach(btn => {
-      btn.addEventListener('click', () => deleteVideo(btn.dataset.file));
+      btn.addEventListener('click', () => deleteVideo(btn.dataset.file, btn.closest('.vl-item')));
     });
   } catch(e) {
     listEl.innerHTML = '<div class="vl-empty">No videos uploaded yet.</div>';
   }
 }
 
-async function deleteVideo(filename) {
+async function deleteVideo(filename, rowEl) {
   if (!confirm(`Delete "${filename}"?`)) return;
+  rowEl.style.opacity = '.4';
   try {
-    const r = await fetch(UPLOAD_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'action=delete&file='+encodeURIComponent(filename),
-    });
-    if (r.ok) { showAlert('Deleted: ' + filename, 'ok'); await refreshLibrary(); }
-    else showAlert('Delete failed', 'err');
-  } catch(e) { showAlert('Error: '+e.message, 'err'); }
+    const fd = new FormData();
+    fd.append('action', 'delete');
+    fd.append('file', filename);
+    const r = await fetch(UPLOAD_URL, { method:'POST', body:fd });
+    const d = await r.json();
+    if (d.ok) { showAlert('Deleted: ' + filename, 'ok'); await refreshLibrary(); await checkServer(); }
+    else { showAlert('Delete failed: ' + d.error, 'err'); rowEl.style.opacity='1'; }
+  } catch(e) { showAlert('Error: ' + e.message, 'err'); rowEl.style.opacity='1'; }
 }
 
 // ── ALERTS ────────────────────────────────────────────────────
@@ -283,12 +335,12 @@ function showAlert(msg, type) {
   const el = document.createElement('div');
   el.className = 'alert ' + type;
   el.textContent = msg;
-  const area = document.getElementById('alert-area');
-  area.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
+  document.getElementById('alert-area').appendChild(el);
+  setTimeout(() => el.remove(), 5000);
 }
 
 // ── INIT ──────────────────────────────────────────────────────
+checkServer();
 refreshLibrary();
 </script>
 
