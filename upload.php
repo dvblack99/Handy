@@ -91,7 +91,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_FILES['chunk'])) {
     }
 
     if (!rename($tmpFile, $VIDEO_DIR.$filename)) {
-        // rename may fail across filesystems — fall back to copy
         if (!copy($tmpFile, $VIDEO_DIR.$filename)) {
             unlink($tmpFile);
             jsonErr('Failed to save file', 500);
@@ -100,9 +99,51 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_FILES['chunk'])) {
     }
     chmod($VIDEO_DIR.$filename, 0644);
 
+    // ── FFMPEG: remux to MP4 with faststart + generate thumbnail ──
+    $ffmpeg   = trim(shell_exec('which ffmpeg') ?: '');
+    $finalFile = $filename;
+
+    if ($ffmpeg) {
+        $srcPath   = $VIDEO_DIR.$filename;
+        $mp4Name   = preg_replace('/\.[^.]+$/', '', $filename).'.mp4';
+        $mp4Path   = $VIDEO_DIR.$mp4Name;
+        $thumbName = preg_replace('/\.[^.]+$/', '', $filename).'.jpg';
+        $thumbPath = $VIDEO_DIR.$thumbName;
+
+        // Remux to MP4 with moov atom at front (faststart) — fast, no re-encode
+        $cmd = "$ffmpeg -y -i ".escapeshellarg($srcPath)
+             . " -c copy -movflags +faststart "
+             . escapeshellarg($mp4Path)
+             . " 2>/dev/null";
+        shell_exec($cmd);
+
+        if (file_exists($mp4Path) && filesize($mp4Path) > 1000) {
+            // Remove original if it was MOV/etc, keep mp4
+            if ($srcPath !== $mp4Path) unlink($srcPath);
+            chmod($mp4Path, 0644);
+            $finalFile = $mp4Name;
+
+            // Generate thumbnail at 2 seconds
+            $thumbCmd = "$ffmpeg -y -i ".escapeshellarg($mp4Path)
+                      . " -ss 00:00:02 -vframes 1 -vf scale=320:180:force_original_aspect_ratio=decrease"
+                      . " ".escapeshellarg($thumbPath)
+                      . " 2>/dev/null";
+            shell_exec($thumbCmd);
+            if (file_exists($thumbPath)) chmod($thumbPath, 0644);
+        } else {
+            // ffmpeg failed — keep original file as-is
+            if (file_exists($mp4Path)) unlink($mp4Path);
+        }
+    }
+
     // Update index
     $videos   = loadIndex($INDEX_FILE);
-    $videos[] = ['name'=>$name, 'file'=>$filename];
+    $thumbFile = preg_replace('/\.[^.]+$/', '', $finalFile).'.jpg';
+    $videos[] = [
+        'name'  => $name,
+        'file'  => $finalFile,
+        'thumb' => file_exists($VIDEO_DIR.$thumbFile) ? $thumbFile : null,
+    ];
     if (!saveIndex($INDEX_FILE, $videos)) {
         jsonErr('File saved but index.json failed — chmod 777 '.$VIDEO_DIR, 500);
     }
