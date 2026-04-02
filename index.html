@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 
 <html lang="en">
@@ -154,6 +155,14 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
   <button id="close-video">✕</button>
   <div id="video-loading"><div id="video-loading-bar"></div></div>
   <div id="video-loading-msg">Loading video…</div>
+  <!-- iOS tap-to-play prompt -->
+  <div id="tap-prompt" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);
+    align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:15;cursor:pointer">
+    <div style="font-size:5rem">▶️</div>
+    <div style="color:#fff;font-size:1.4rem;font-weight:700;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.8)">
+      Tap to play with sound
+    </div>
+  </div>
 </div>
 
 <!-- Ballz! Game -->
@@ -170,14 +179,35 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
 'use strict';
 
 // ═══════════════════════════════════════════════════════════
-//  CONFIG
+//  CONFIG — loaded from settings.json, falls back to defaults
 // ═══════════════════════════════════════════════════════════
-const CFG = {
-  dwellMs:2000, sensitivity:1.8, smoothing:0.18, cursorRadius:40,
-  soundThreshold:0.18, soundCooldownMs:800,
-  previewOn:false, micOn:false,
-  scrollZone:0.14, scrollSpeed:5,
+const DEFAULTS = {
+  global: { dwellMs:2000, sensitivity:1.8, smoothing:0.18, cursorRadius:40,
+            micOn:false, previewOn:false, scrollZone:0.14, scrollSpeed:5 },
+  videos: { autoplay:true, loop:false, volume:1.0 },
+  music:  { volume:1.0 },
+  games:  { ballzMaxBalls:5, ballzGravity:0.3, ballzSpawnRate:90 },
+  other:  {},
 };
+let CFG = JSON.parse(JSON.stringify(DEFAULTS.global)); // mutable working copy
+let SECTION_CFG = JSON.parse(JSON.stringify(DEFAULTS));
+
+async function loadSettings(){
+  try{
+    const r=await fetch('settings.json?t='+Date.now());
+    if(!r.ok) throw new Error('no settings.json');
+    const s=await r.json();
+    // Merge each section
+    if(s.global)  Object.assign(CFG, s.global);
+    if(s.videos)  Object.assign(SECTION_CFG.videos, s.videos);
+    if(s.music)   Object.assign(SECTION_CFG.music,  s.music);
+    if(s.games)   Object.assign(SECTION_CFG.games,  s.games);
+    if(s.other)   Object.assign(SECTION_CFG.other,  s.other);
+    dbgOk('Settings loaded');
+  }catch(e){
+    dbgWarn('No settings.json, using defaults');
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 //  DEBUG
@@ -226,6 +256,7 @@ const previewBtn=document.getElementById('preview-btn');
 const videoOverlay=document.getElementById('video-overlay');
 const fullVideo=document.getElementById('full-video');
 const closeVideoBtn=document.getElementById('close-video');
+const tapPrompt=document.getElementById('tap-prompt');
 const videoLoadingBar=document.getElementById('video-loading-bar');
 const videoLoadingEl=document.getElementById('video-loading');
 const videoLoadingMsg=document.getElementById('video-loading-msg');
@@ -282,18 +313,6 @@ function getScreenTiles() {
     {id:'oth_3',label:'3',sublabel:'Option 3',color:'#ff9f43',action:'comingsoon'},
   ],W,H,2,false);
 
-  if(state.screen==='settings') {
-    const pad=18,tW=(canvas.width-pad*3)/2,tH=92;
-    return [
-      {id:'dwell+',label:'⏱',sublabel:`Dwell + (${(CFG.dwellMs/1000).toFixed(1)}s)`,x:pad,y:pad,w:tW,h:tH,action:'dwell+',color:'#6c63ff'},
-      {id:'dwell-',label:'⏱',sublabel:`Dwell − (${(CFG.dwellMs/1000).toFixed(1)}s)`,x:pad*2+tW,y:pad,w:tW,h:tH,action:'dwell-',color:'#6c63ff'},
-      {id:'sens+', label:'🎯',sublabel:`Sens + (${CFG.sensitivity.toFixed(1)})`,x:pad,y:pad*2+tH,w:tW,h:tH,action:'sens+',color:'#ff6584'},
-      {id:'sens-', label:'🎯',sublabel:`Sens − (${CFG.sensitivity.toFixed(1)})`,x:pad*2+tW,y:pad*2+tH,w:tW,h:tH,action:'sens-',color:'#ff6584'},
-      {id:'mic',   label:'🎤',sublabel:CFG.micOn?'Mic ON':'Mic OFF',x:pad,y:pad*3+tH*2,w:tW,h:tH,action:'mic',color:'#00e5a0'},
-      {id:'preview',label:'📷',sublabel:CFG.previewOn?'Preview ON':'Preview OFF',x:pad*2+tW,y:pad*3+tH*2,w:tW,h:tH,action:'preview',color:'#4ecdc4'},
-      {id:'back',label:'✕',sublabel:'Back',x:pad,y:pad*4+tH*3,w:canvas.width-pad*2,h:tH,action:'back',color:BACK_COLOR},
-    ];
-  }
   return [];
 }
 
@@ -629,12 +648,6 @@ function selectTile(tile){
   if(tile.action==='video')      {playVideo(tile.src,tile.sublabel||'Video');return;}
   if(tile.action==='ballz')      {startBallz();return;}
   if(tile.action==='comingsoon') {flashMsg('Coming soon! 🚀');return;}
-  if(tile.action==='dwell+')     {CFG.dwellMs=Math.min(4000,CFG.dwellMs+250);return;}
-  if(tile.action==='dwell-')     {CFG.dwellMs=Math.max(500,CFG.dwellMs-250);return;}
-  if(tile.action==='sens+')      {CFG.sensitivity=Math.min(4,+(CFG.sensitivity+.2).toFixed(1));return;}
-  if(tile.action==='sens-')      {CFG.sensitivity=Math.max(.5,+(CFG.sensitivity-.2).toFixed(1));return;}
-  if(tile.action==='mic')        {toggleMic();return;}
-  if(tile.action==='preview')    {togglePreview();return;}
 }
 
 function goTo(screen){
@@ -643,12 +656,21 @@ function goTo(screen){
 }
 
 // ═══════════════════════════════════════════════════════════
-//  VIDEO PLAYER  (audio fix: no muted attr, user gesture = tap)
+//  VIDEO PLAYER — iOS audio fix
+//  iOS requires a direct user tap on the video element to allow audio.
+//  We show a fullscreen tap prompt over the video on first load.
 // ═══════════════════════════════════════════════════════════
+let audioUnlocked = false;
+
+// Unlock audio on very first tap anywhere (before video)
+document.addEventListener('touchend', ()=>{ audioUnlocked=true; }, {once:true, passive:true});
+document.addEventListener('mouseup',  ()=>{ audioUnlocked=true; }, {once:true});
+
 function playVideo(src,name){
   if(!src){flashMsg(`No file for "${name}" yet`);return;}
   fullVideo.pause(); fullVideo.removeAttribute('src'); fullVideo.load();
   fullVideo.src=src;
+  fullVideo.volume = SECTION_CFG.videos.volume ?? 1.0;
   videoOverlay.classList.add('show');
   videoLoadingEl.classList.add('show');
   videoLoadingMsg.classList.add('show');
@@ -659,12 +681,17 @@ function playVideo(src,name){
   fullVideo.addEventListener('canplay',onVideoCanPlay,{once:true});
   fullVideo.addEventListener('waiting',()=>{
     videoLoadingEl.classList.add('show');
+    videoLoadingMsg.classList.add('show');
     videoLoadingMsg.textContent='Buffering…';
   });
   fullVideo.addEventListener('playing',()=>{
     videoLoadingEl.classList.remove('show');
     videoLoadingMsg.classList.remove('show');
+    tapPrompt.style.display='none';
   });
+
+  // Show tap-to-play prompt — iOS needs a direct tap on video
+  tapPrompt.style.display='flex';
 
   const el=videoOverlay;
   if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
@@ -683,12 +710,28 @@ function onVideoProgress(){
 }
 
 function onVideoCanPlay(){
+  videoLoadingEl.classList.remove('show');
+  videoLoadingMsg.classList.remove('show');
   videoLoadingMsg.textContent='Starting…';
+  // Attempt autoplay — will succeed if audio already unlocked
   fullVideo.play().then(()=>{
-    videoLoadingEl.classList.remove('show');
-    videoLoadingMsg.classList.remove('show');
-  }).catch(e=>dbgErr('Play: '+e.message));
+    tapPrompt.style.display='none';
+  }).catch(()=>{
+    // Autoplay blocked — show tap prompt (common on iOS)
+    tapPrompt.style.display='flex';
+  });
 }
+
+// Tap prompt — direct user gesture on the video element
+tapPrompt.addEventListener('click', ()=>{
+  tapPrompt.style.display='none';
+  fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
+});
+tapPrompt.addEventListener('touchend', (e)=>{
+  e.preventDefault();
+  tapPrompt.style.display='none';
+  fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
+}, {passive:false});
 
 function closeVideoPlayer(){
   fullVideo.removeEventListener('progress',onVideoProgress);
@@ -696,6 +739,7 @@ function closeVideoPlayer(){
   videoOverlay.classList.remove('show');
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
+  tapPrompt.style.display='none';
   if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   else if(document.webkitFullscreenElement) document.webkitExitFullscreen();
 }
@@ -1330,6 +1374,7 @@ startBtn.addEventListener('click',async()=>{
   mainDiv.classList.add('show');
   resize(); window.addEventListener('resize',resize);
   dbgOk('App started');
+  await loadSettings();
   await loadVideoLibrary();
   requestAnimationFrame(render);
   await initHandTracking();
