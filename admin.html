@@ -7,182 +7,542 @@
 <title>HandCam Admin</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-:root { --bg:#0a0a12; --surface:#14142a; --accent:#7c6aff; --green:#4fffb0; --red:#ff6a6a; --text:#f0eeff; --muted:#7870aa; }
-body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; padding:20px; }
-h1 { font-size:1.7rem; font-weight:900; margin-bottom:3px; }
-.subtitle { color:var(--muted); font-size:.85rem; margin-bottom:20px; }
-.card { background:var(--surface); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:20px; margin-bottom:16px; }
-.card h2 { font-size:1rem; font-weight:700; margin-bottom:14px; }
+:root {
+  --bg:#0d0d1a; --surface:#1a1a2e; --surface2:#22223a;
+  --accent:#6c63ff; --green:#00e5a0; --red:#ff6584; --yellow:#ffd166;
+  --text:#ffffff; --text2:#d0ccff; --muted:#8880bb;
+}
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; padding:0; }
 
-#drop-zone { border:2px dashed rgba(124,106,255,.35); border-radius:12px;
-padding:32px 20px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:14px; }
-#drop-zone:hover, #drop-zone.drag-over { border-color:var(–accent); background:rgba(124,106,255,.08); }
-#drop-zone .icon { font-size:2.5rem; margin-bottom:10px; }
-#drop-zone p { color:var(–muted); font-size:.88rem; line-height:1.6; }
-#drop-zone strong { color:var(–text); }
+/* Nav tabs */
+#tab-bar { display:flex; background:var(–surface); border-bottom:1px solid rgba(255,255,255,.08); overflow-x:auto; }
+.tab { padding:14px 20px; cursor:pointer; font-size:.9rem; font-weight:600; color:var(–muted);
+white-space:nowrap; border-bottom:3px solid transparent; transition:all .2s; }
+.tab.active { color:var(–accent); border-bottom-color:var(–accent); }
+.tab:hover { color:var(–text2); }
+
+/* Page header */
+.page-header { padding:20px 20px 0; display:flex; align-items:center; justify-content:space-between; }
+.page-header h1 { font-size:1.5rem; font-weight:900; }
+.page-header a { color:var(–accent); text-decoration:none; font-size:.85rem; }
+
+/* Sections */
+.tab-content { display:none; padding:16px 20px 40px; }
+.tab-content.active { display:block; }
+
+/* Cards */
+.card { background:var(–surface); border:1px solid rgba(255,255,255,.07); border-radius:16px;
+padding:20px; margin-bottom:16px; }
+.card h2 { font-size:1rem; font-weight:700; margin-bottom:16px; color:var(–text2); display:flex;
+align-items:center; gap:8px; }
+
+/* Settings rows */
+.setting-row { display:flex; align-items:center; gap:12px; padding:10px 0;
+border-bottom:1px solid rgba(255,255,255,.05); }
+.setting-row:last-child { border-bottom:none; }
+.setting-label { flex:1; }
+.setting-label .label-title { font-size:.9rem; font-weight:600; }
+.setting-label .label-desc  { font-size:.75rem; color:var(–muted); margin-top:2px; }
+.setting-control { flex-shrink:0; }
+
+/* Inputs */
+input[type=range] { width:140px; accent-color:var(–accent); }
+input[type=number] { width:80px; background:var(–surface2); border:1px solid rgba(255,255,255,.15);
+border-radius:8px; padding:6px 10px; color:var(–text); font-size:.9rem; text-align:center; }
+input[type=text] { width:100%; background:var(–surface2); border:1px solid rgba(255,255,255,.15);
+border-radius:8px; padding:8px 12px; color:var(–text); font-size:.9rem; }
+input:focus { outline:none; border-color:var(–accent); }
+select { background:var(–surface2); border:1px solid rgba(255,255,255,.15); border-radius:8px;
+padding:6px 10px; color:var(–text); font-size:.85rem; }
+.val-display { color:var(–accent); font-weight:700; font-size:.85rem; min-width:48px; text-align:right; }
+
+/* Toggle switch */
+.toggle { position:relative; width:48px; height:26px; cursor:pointer; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:rgba(255,255,255,.15);
+border-radius:13px; transition:.3s; }
+.toggle-slider:before { content:’’; position:absolute; width:20px; height:20px;
+background:#fff; border-radius:50%; top:3px; left:3px; transition:.3s; }
+.toggle input:checked + .toggle-slider { background:var(–accent); }
+.toggle input:checked + .toggle-slider:before { transform:translateX(22px); }
+
+/* Save button */
+.save-btn { width:100%; padding:14px; background:var(–accent); color:#fff;
+border:none; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer;
+margin-top:8px; transition:opacity .2s; }
+.save-btn:hover { opacity:.9; }
+.save-btn:active { opacity:.7; }
+
+/* Status */
+#save-status { text-align:center; font-size:.85rem; margin-top:10px; min-height:20px; }
+#php-status { font-size:.8rem; padding:8px 12px; border-radius:8px; margin-bottom:14px;
+background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); color:var(–muted); }
+#php-status.ok  { border-color:rgba(0,229,160,.3); color:var(–green); background:rgba(0,229,160,.08); }
+#php-status.err { border-color:rgba(255,101,132,.3); color:var(–red); background:rgba(255,101,132,.08); }
+
+/* Upload styles */
+#drop-zone { border:2px dashed rgba(108,99,255,.35); border-radius:12px;
+padding:28px 20px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:12px; }
+#drop-zone:hover, #drop-zone.drag-over { border-color:var(–accent); background:rgba(108,99,255,.08); }
+#drop-zone .icon { font-size:2.2rem; margin-bottom:8px; }
+#drop-zone p { color:var(–muted); font-size:.85rem; line-height:1.6; }
 #file-input { display:none; }
-
-.compress-opts { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-.compress-opt { flex:1; min-width:80px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
-border-radius:10px; padding:10px 8px; text-align:center; cursor:pointer; transition:all .2s; }
-.compress-opt.selected { border-color:var(–accent); background:rgba(124,106,255,.15); }
-.compress-opt .co-label { font-size:.8rem; font-weight:700; color:var(–text); }
-.compress-opt .co-desc  { font-size:.7rem; color:var(–muted); margin-top:2px; }
-
-#queue { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
-.queue-item { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:12px 14px; }
-.qi-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
-.qi-name { flex:1; font-size:.85rem; font-weight:600; word-break:break-all; min-width:0; }
-.qi-size { color:var(–muted); font-size:.75rem; flex-shrink:0; }
-.qi-status { font-size:.75rem; flex-shrink:0; min-width:90px; text-align:right; }
+.compress-opts { display:flex; gap:8px; margin-bottom:12px; }
+.compress-opt { flex:1; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+border-radius:10px; padding:8px 6px; text-align:center; cursor:pointer; transition:all .2s; }
+.compress-opt.selected { border-color:var(–accent); background:rgba(108,99,255,.15); }
+.compress-opt .co-l { font-size:.8rem; font-weight:700; }
+.compress-opt .co-d { font-size:.68rem; color:var(–muted); margin-top:1px; }
+#queue { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.queue-item { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+border-radius:10px; padding:10px 12px; }
+.qi-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+.qi-name { flex:1; font-size:.82rem; font-weight:600; word-break:break-all; }
+.qi-size { color:var(–muted); font-size:.72rem; }
+.qi-status { font-size:.72rem; min-width:80px; text-align:right; }
 .qi-name-edit { width:100%; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
-border-radius:8px; padding:6px 10px; color:var(–text); font-size:.82rem; margin-bottom:8px; }
-.qi-name-edit:focus { outline:none; border-color:var(–accent); }
-.progress-bar { height:6px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+border-radius:7px; padding:5px 9px; color:var(–text); font-size:.8rem; margin-bottom:6px; }
+.progress-bar { height:5px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
 .progress-fill { height:100%; background:var(–accent); border-radius:3px; width:0%; transition:width .2s; }
 .progress-fill.done { background:var(–green); width:100% !important; }
 .progress-fill.err  { background:var(–red); }
-.qi-detail { font-size:.7rem; color:var(–muted); margin-top:4px; min-height:16px; }
+.qi-detail { font-size:.68rem; color:var(–muted); margin-top:3px; }
+#upload-btn { width:100%; padding:12px; background:var(–accent); color:#fff;
+border:none; border-radius:10px; font-size:.95rem; font-weight:700; cursor:pointer; }
+#upload-btn:disabled { opacity:.35; cursor:not-allowed; }
 
-#upload-all-btn { width:100%; padding:14px; background:var(–accent); color:#fff;
-border:none; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer; }
-#upload-all-btn:disabled { opacity:.35; cursor:not-allowed; }
-
-#php-status { font-size:.8rem; padding:8px 12px; border-radius:8px; margin-bottom:14px;
-background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); color:var(–muted); }
-#php-status.ok  { border-color:rgba(79,255,176,.3); color:var(–green); background:rgba(79,255,176,.08); }
-#php-status.err { border-color:rgba(255,106,106,.3); color:var(–red); background:rgba(255,106,106,.08); }
-
+/* Library */
 #video-list { display:flex; flex-direction:column; gap:8px; }
 .vl-item { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.04);
 border:1px solid rgba(255,255,255,.06); border-radius:10px; padding:10px 12px; }
-.vl-thumb { width:72px; height:41px; border-radius:6px; object-fit:cover; background:#111; flex-shrink:0; }
+.vl-thumb { width:64px; height:36px; border-radius:5px; object-fit:cover; background:#111; flex-shrink:0; }
 .vl-info { flex:1; min-width:0; }
-.vl-name { font-size:.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.vl-file { font-size:.72rem; color:var(–muted); margin-top:2px; }
+.vl-name { font-size:.82rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.vl-file { font-size:.7rem; color:var(–muted); }
 .vl-del { background:none; border:1px solid rgba(255,100,100,.3); color:var(–red);
-padding:5px 9px; border-radius:7px; cursor:pointer; font-size:.75rem; flex-shrink:0; }
+padding:4px 8px; border-radius:7px; cursor:pointer; font-size:.72rem; }
 .vl-empty { color:var(–muted); font-size:.85rem; text-align:center; padding:20px; }
 
-.alert { padding:11px 14px; border-radius:10px; margin-bottom:12px; font-size:.85rem; }
-.alert.ok  { background:rgba(79,255,176,.1); border:1px solid rgba(79,255,176,.3); color:var(–green); }
-.alert.err { background:rgba(255,106,106,.1); border:1px solid rgba(255,106,106,.3); color:var(–red); }
-a.back { color:var(–accent); text-decoration:none; font-size:.85rem; display:inline-block; margin-bottom:18px; }
+.alert { padding:10px 14px; border-radius:10px; margin-bottom:10px; font-size:.82rem; }
+.alert.ok  { background:rgba(0,229,160,.1); border:1px solid rgba(0,229,160,.3); color:var(–green); }
+.alert.err { background:rgba(255,101,132,.1); border:1px solid rgba(255,101,132,.3); color:var(–red); }
 .refresh-btn { background:none; border:1px solid rgba(255,255,255,.14); color:var(–muted);
-padding:3px 9px; border-radius:7px; cursor:pointer; font-size:.72rem; margin-left:8px; }
+padding:2px 8px; border-radius:6px; cursor:pointer; font-size:.7rem; margin-left:8px; }
 </style>
 
 </head>
 <body>
 
-<a href="./" class="back">← Back to HandCam</a>
-
-<h1>📁 HandCam Admin</h1>
-<p class="subtitle">Upload and manage videos</p>
-
-<div id="alert-area"></div>
-<div id="php-status">Checking server…</div>
-
-<div class="card">
-  <h2>Upload Videos</h2>
-
-  <div id="drop-zone">
-    <div class="icon">🎬</div>
-    <p><strong>Tap to choose a video</strong><br>
-    Video will be compressed in your browser before uploading</p>
-    <input type="file" id="file-input" accept="video/mp4,video/quicktime,video/webm,video/*">
-  </div>
-
-  <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Compression quality:</div>
-  <div class="compress-opts">
-    <div class="compress-opt" data-scale="480" data-crf="28">
-      <div class="co-label">Small</div>
-      <div class="co-desc">480p · fast</div>
-    </div>
-    <div class="compress-opt selected" data-scale="720" data-crf="24">
-      <div class="co-label">Medium</div>
-      <div class="co-desc">720p · good</div>
-    </div>
-    <div class="compress-opt" data-scale="1080" data-crf="20">
-      <div class="co-label">Large</div>
-      <div class="co-desc">1080p · slow</div>
-    </div>
-    <div class="compress-opt" data-scale="0" data-crf="0">
-      <div class="co-label">Original</div>
-      <div class="co-desc">no compress</div>
-    </div>
-  </div>
-
-  <div id="queue"></div>
-  <button id="upload-all-btn" disabled>Choose a video first</button>
+<div class="page-header">
+  <h1>⚙️ HandCam Admin</h1>
+  <a href="./">← Back to App</a>
 </div>
 
-<div class="card">
-  <h2>Video Library <button class="refresh-btn" id="refresh-btn">↻ Refresh</button></h2>
-  <div id="video-list"><div class="vl-empty">Loading…</div></div>
+<div id="tab-bar">
+  <div class="tab active" data-tab="global">🌐 Global</div>
+  <div class="tab" data-tab="videos">🎬 Videos</div>
+  <div class="tab" data-tab="music">🎵 Music</div>
+  <div class="tab" data-tab="games">🎮 Games</div>
+  <div class="tab" data-tab="other">⭐ Other</div>
+  <div class="tab" data-tab="library">📁 Library</div>
+</div>
+
+<div id="alert-area" style="padding:0 20px"></div>
+
+<!-- ── GLOBAL ── -->
+
+<div class="tab-content active" id="tab-global">
+  <div id="php-status">Checking server…</div>
+  <div class="card">
+    <h2>🖱️ Hand Tracking</h2>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Dwell Time</div><div class="label-desc">How long to hover before selecting</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="g-dwell" min="500" max="4000" step="250" value="2000">
+        <span class="val-display" id="g-dwell-val">2.0s</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Sensitivity</div><div class="label-desc">How far cursor moves per hand movement</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="g-sens" min="0.5" max="4" step="0.1" value="1.8">
+        <span class="val-display" id="g-sens-val">1.8</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Cursor Size</div><div class="label-desc">Radius of the cursor circle</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="g-cursor" min="20" max="80" step="2" value="40">
+        <span class="val-display" id="g-cursor-val">40px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Smoothing</div><div class="label-desc">Lower = smoother but slower response</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="g-smooth" min="0.05" max="0.5" step="0.01" value="0.18">
+        <span class="val-display" id="g-smooth-val">0.18</span>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>📷 Camera</h2>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Show Camera Preview</div><div class="label-desc">PiP view of camera feed</div></div>
+      <div class="setting-control"><label class="toggle"><input type="checkbox" id="g-preview"><span class="toggle-slider"></span></label></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Microphone (sound trigger)</div><div class="label-desc">Enable sound-based selection</div></div>
+      <div class="setting-control"><label class="toggle"><input type="checkbox" id="g-mic"><span class="toggle-slider"></span></label></div>
+    </div>
+  </div>
+  <button class="save-btn" onclick="saveSection('global')">💾 Save Global Settings</button>
+  <div id="save-status"></div>
+</div>
+
+<!-- ── VIDEOS ── -->
+
+<div class="tab-content" id="tab-videos">
+  <div class="card">
+    <h2>🎬 Video Playback</h2>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Volume</div><div class="label-desc">Default playback volume</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="v-volume" min="0" max="1" step="0.05" value="1">
+        <span class="val-display" id="v-volume-val">100%</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Autoplay</div><div class="label-desc">Start video immediately when selected</div></div>
+      <div class="setting-control"><label class="toggle"><input type="checkbox" id="v-autoplay" checked><span class="toggle-slider"></span></label></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Loop Videos</div><div class="label-desc">Repeat video when it ends</div></div>
+      <div class="setting-control"><label class="toggle"><input type="checkbox" id="v-loop"><span class="toggle-slider"></span></label></div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Dwell Time Override</div><div class="label-desc">Custom dwell for video tiles (0 = use global)</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="v-dwell" min="0" max="4000" step="250" value="0">
+        <span class="val-display" id="v-dwell-val">Global</span>
+      </div>
+    </div>
+  </div>
+  <button class="save-btn" onclick="saveSection('videos')">💾 Save Video Settings</button>
+  <div id="save-status-v"></div>
+</div>
+
+<!-- ── MUSIC ── -->
+
+<div class="tab-content" id="tab-music">
+  <div class="card">
+    <h2>🎵 Music Settings</h2>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Volume</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="m-volume" min="0" max="1" step="0.05" value="1">
+        <span class="val-display" id="m-volume-val">100%</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Dwell Time Override</div><div class="label-desc">0 = use global</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="m-dwell" min="0" max="4000" step="250" value="0">
+        <span class="val-display" id="m-dwell-val">Global</span>
+      </div>
+    </div>
+  </div>
+  <button class="save-btn" onclick="saveSection('music')">💾 Save Music Settings</button>
+  <div id="save-status-m"></div>
+</div>
+
+<!-- ── GAMES ── -->
+
+<div class="tab-content" id="tab-games">
+  <div class="card">
+    <h2>🔵 Ballz! Settings</h2>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Max Balls</div><div class="label-desc">How many balls on screen at once</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="g-ballz-max" min="1" max="10" step="1" value="5">
+        <span class="val-display" id="g-ballz-max-val">5</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Gravity</div><div class="label-desc">How fast balls fall</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="g-ballz-grav" min="0.05" max="1.0" step="0.05" value="0.3">
+        <span class="val-display" id="g-ballz-grav-val">0.30</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Spawn Rate</div><div class="label-desc">Frames between spawns (lower = faster)</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="g-ballz-spawn" min="30" max="300" step="10" value="90">
+        <span class="val-display" id="g-ballz-spawn-val">90</span>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>🎮 General Games</h2>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Dwell Time Override</div><div class="label-desc">0 = use global</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="gm-dwell" min="0" max="4000" step="250" value="0">
+        <span class="val-display" id="gm-dwell-val">Global</span>
+      </div>
+    </div>
+  </div>
+  <button class="save-btn" onclick="saveSection('games')">💾 Save Games Settings</button>
+  <div id="save-status-g"></div>
+</div>
+
+<!-- ── OTHER ── -->
+
+<div class="tab-content" id="tab-other">
+  <div class="card">
+    <h2>⭐ Other Section</h2>
+    <div class="setting-row">
+      <div class="setting-label"><div class="label-title">Dwell Time Override</div><div class="label-desc">0 = use global</div></div>
+      <div class="setting-control" style="display:flex;align-items:center;gap:8px">
+        <input type="range" id="o-dwell" min="0" max="4000" step="250" value="0">
+        <span class="val-display" id="o-dwell-val">Global</span>
+      </div>
+    </div>
+  </div>
+  <button class="save-btn" onclick="saveSection('other')">💾 Save Other Settings</button>
+  <div id="save-status-o"></div>
+</div>
+
+<!-- ── LIBRARY ── -->
+
+<div class="tab-content" id="tab-library">
+  <div id="php-status-lib">Checking server…</div>
+  <div class="card">
+    <h2>📤 Upload Video</h2>
+    <div id="drop-zone">
+      <div class="icon">🎬</div>
+      <p><strong>Tap to choose a video</strong><br>MP4, MOV, WEBM up to 500MB</p>
+      <input type="file" id="file-input" accept="video/mp4,video/quicktime,video/webm,video/*">
+    </div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">Quality:</div>
+    <div class="compress-opts">
+      <div class="compress-opt" data-scale="480"><div class="co-l">Small</div><div class="co-d">480p</div></div>
+      <div class="compress-opt selected" data-scale="720"><div class="co-l">Medium</div><div class="co-d">720p</div></div>
+      <div class="compress-opt" data-scale="1080"><div class="co-l">Large</div><div class="co-d">1080p</div></div>
+      <div class="compress-opt" data-scale="0"><div class="co-l">Original</div><div class="co-d">no compress</div></div>
+    </div>
+    <div id="queue"></div>
+    <button id="upload-btn" disabled>Choose a video first</button>
+  </div>
+  <div class="card">
+    <h2>📚 Video Library <button class="refresh-btn" id="refresh-btn">↻</button></h2>
+    <div id="video-list"><div class="vl-empty">Loading…</div></div>
+  </div>
 </div>
 
 <script>
 const UPLOAD_URL = 'upload.php';
+const SETTINGS_URL = 'save_settings.php';
 const INDEX_URL  = 'videos/index.json';
-const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
+const CHUNK_SIZE = 2 * 1024 * 1024;
 
-let queue = [];
 let compressScale = 720;
-let compressCrf   = 24;
+let queue = [];
 
-// ── COMPRESSION OPTIONS ──────────────────────────────────────
-document.querySelectorAll('.compress-opt').forEach(el => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('.compress-opt').forEach(e=>e.classList.remove('selected'));
-    el.classList.add('selected');
-    compressScale = parseInt(el.dataset.scale);
-    compressCrf   = parseInt(el.dataset.crf);
+// ── TABS ─────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab==='library') { checkServerLib(); refreshLibrary(); }
   });
 });
 
-// ── SERVER CHECK ─────────────────────────────────────────────
-async function checkServer() {
-  const el = document.getElementById('php-status');
-  try {
-    const r = await fetch(UPLOAD_URL+'?t='+Date.now());
-    const d = await r.json();
-    el.className = d.ok ? 'ok' : 'err';
-    el.textContent = d.ok
-      ? `✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library${!d.writable?' ⚠️ NOT WRITABLE':''}`
-      : '❌ '+JSON.stringify(d);
-    if (d.ok && !d.writable) showAlert('Videos folder not writable. Run: chmod 777 /root/mysite/html/handy/videos','err');
-  } catch(e) { el.className='err'; el.textContent='❌ Cannot reach upload.php'; }
+// ── RANGE DISPLAYS ────────────────────────────────────────────
+function bindRange(id, displayId, fmt){
+  const el=document.getElementById(id);
+  const disp=document.getElementById(displayId);
+  if(!el||!disp) return;
+  el.addEventListener('input',()=>{ disp.textContent=fmt(el.value); });
+  disp.textContent=fmt(el.value);
+}
+bindRange('g-dwell','g-dwell-val',v=>v==0?'Global':(v/1000).toFixed(1)+'s');
+bindRange('g-sens','g-sens-val',v=>parseFloat(v).toFixed(1));
+bindRange('g-cursor','g-cursor-val',v=>v+'px');
+bindRange('g-smooth','g-smooth-val',v=>parseFloat(v).toFixed(2));
+bindRange('v-volume','v-volume-val',v=>Math.round(v*100)+'%');
+bindRange('v-dwell','v-dwell-val',v=>v==0?'Global':(v/1000).toFixed(1)+'s');
+bindRange('m-volume','m-volume-val',v=>Math.round(v*100)+'%');
+bindRange('m-dwell','m-dwell-val',v=>v==0?'Global':(v/1000).toFixed(1)+'s');
+bindRange('g-ballz-max','g-ballz-max-val',v=>v);
+bindRange('g-ballz-grav','g-ballz-grav-val',v=>parseFloat(v).toFixed(2));
+bindRange('g-ballz-spawn','g-ballz-spawn-val',v=>v);
+bindRange('gm-dwell','gm-dwell-val',v=>v==0?'Global':(v/1000).toFixed(1)+'s');
+bindRange('o-dwell','o-dwell-val',v=>v==0?'Global':(v/1000).toFixed(1)+'s');
+
+// ── LOAD SETTINGS ────────────────────────────────────────────
+async function loadSettings(){
+  try{
+    const r=await fetch('settings.json?t='+Date.now());
+    if(!r.ok) return;
+    const s=await r.json();
+    // Global
+    const g=s.global||{};
+    if(g.dwellMs)      setRange('g-dwell',g.dwellMs);
+    if(g.sensitivity)  setRange('g-sens',g.sensitivity);
+    if(g.cursorRadius) setRange('g-cursor',g.cursorRadius);
+    if(g.smoothing)    setRange('g-smooth',g.smoothing);
+    if(g.previewOn!==undefined) document.getElementById('g-preview').checked=g.previewOn;
+    if(g.micOn!==undefined)     document.getElementById('g-mic').checked=g.micOn;
+    // Videos
+    const v=s.videos||{};
+    if(v.volume!==undefined)   setRange('v-volume',v.volume);
+    if(v.autoplay!==undefined) document.getElementById('v-autoplay').checked=v.autoplay;
+    if(v.loop!==undefined)     document.getElementById('v-loop').checked=v.loop;
+    if(v.dwellMs!==undefined)  setRange('v-dwell',v.dwellMs||0);
+    // Music
+    const m=s.music||{};
+    if(m.volume!==undefined)  setRange('m-volume',m.volume);
+    if(m.dwellMs!==undefined) setRange('m-dwell',m.dwellMs||0);
+    // Games
+    const gm=s.games||{};
+    if(gm.ballzMaxBalls!==undefined) setRange('g-ballz-max',gm.ballzMaxBalls);
+    if(gm.ballzGravity!==undefined)  setRange('g-ballz-grav',gm.ballzGravity);
+    if(gm.ballzSpawnRate!==undefined)setRange('g-ballz-spawn',gm.ballzSpawnRate);
+    if(gm.dwellMs!==undefined)       setRange('gm-dwell',gm.dwellMs||0);
+    // Other
+    const ot=s.other||{};
+    if(ot.dwellMs!==undefined) setRange('o-dwell',ot.dwellMs||0);
+  }catch(e){}
 }
 
-// ── FILE PICKER ───────────────────────────────────────────────
-const dropZone  = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-const queueEl   = document.getElementById('queue');
-const uploadBtn = document.getElementById('upload-all-btn');
+function setRange(id,val){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.value=val;
+  el.dispatchEvent(new Event('input'));
+}
 
-dropZone.addEventListener('click', ()=>{ fileInput.value=''; fileInput.click(); });
-fileInput.addEventListener('change', e=>{ if(e.target.files[0]) addFile(e.target.files[0]); });
-dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag-over');});
-dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e=>{
-  e.preventDefault(); dropZone.classList.remove('drag-over');
+// ── SAVE SETTINGS ────────────────────────────────────────────
+function getVal(id){ return parseFloat(document.getElementById(id)?.value||0); }
+function getChk(id){ return document.getElementById(id)?.checked||false; }
+
+function buildSettings(){
+  return {
+    global:{
+      dwellMs:    getVal('g-dwell'),
+      sensitivity:getVal('g-sens'),
+      cursorRadius:getVal('g-cursor'),
+      smoothing:  getVal('g-smooth'),
+      previewOn:  getChk('g-preview'),
+      micOn:      getChk('g-mic'),
+      scrollZone: 0.14, scrollSpeed: 5,
+    },
+    videos:{
+      volume:   getVal('v-volume'),
+      autoplay: getChk('v-autoplay'),
+      loop:     getChk('v-loop'),
+      dwellMs:  getVal('v-dwell')||null,
+    },
+    music:{
+      volume:  getVal('m-volume'),
+      dwellMs: getVal('m-dwell')||null,
+    },
+    games:{
+      ballzMaxBalls: getVal('g-ballz-max'),
+      ballzGravity:  getVal('g-ballz-grav'),
+      ballzSpawnRate:getVal('g-ballz-spawn'),
+      dwellMs:       getVal('gm-dwell')||null,
+    },
+    other:{
+      dwellMs: getVal('o-dwell')||null,
+    },
+  };
+}
+
+async function saveSection(section){
+  const settings=buildSettings();
+  const statusId = section==='global'?'save-status':
+                   section==='videos'?'save-status-v':
+                   section==='music' ?'save-status-m':
+                   section==='games' ?'save-status-g':'save-status-o';
+  const statusEl=document.getElementById(statusId);
+  if(statusEl) statusEl.textContent='Saving…';
+  try{
+    const r=await fetch(SETTINGS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(settings),
+    });
+    const d=await r.json();
+    if(d.ok){
+      if(statusEl){ statusEl.style.color='var(--green)'; statusEl.textContent='✓ Saved! App will use new settings on next load.'; }
+    } else {
+      if(statusEl){ statusEl.style.color='var(--red)'; statusEl.textContent='❌ '+d.error; }
+    }
+  }catch(e){
+    if(statusEl){ statusEl.style.color='var(--red)'; statusEl.textContent='❌ '+e.message; }
+  }
+  setTimeout(()=>{ if(statusEl) statusEl.textContent=''; },4000);
+}
+
+// ── SERVER STATUS ─────────────────────────────────────────────
+async function checkServer(){
+  const el=document.getElementById('php-status');
+  try{
+    const r=await fetch(UPLOAD_URL+'?t='+Date.now());
+    const d=await r.json();
+    el.className=d.ok?'ok':'err';
+    el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library`:'❌ '+JSON.stringify(d);
+  }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php'; }
+}
+
+async function checkServerLib(){
+  const el=document.getElementById('php-status-lib');
+  try{
+    const r=await fetch(UPLOAD_URL+'?t='+Date.now());
+    const d=await r.json();
+    el.className=d.ok?'ok':'err';
+    el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library`:'❌ '+JSON.stringify(d);
+  }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php'; }
+}
+
+// ── COMPRESSION OPTIONS ───────────────────────────────────────
+document.querySelectorAll('.compress-opt').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('.compress-opt').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected');
+    compressScale=parseInt(el.dataset.scale);
+  });
+});
+
+// ── FILE PICKER ───────────────────────────────────────────────
+const dropZone=document.getElementById('drop-zone');
+const fileInput=document.getElementById('file-input');
+const queueEl=document.getElementById('queue');
+const uploadBtn=document.getElementById('upload-btn');
+
+dropZone.addEventListener('click',()=>{fileInput.value='';fileInput.click();});
+fileInput.addEventListener('change',e=>{ if(e.target.files[0]) addFile(e.target.files[0]); });
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault();dropZone.classList.remove('drag-over');
   const f=Array.from(e.dataTransfer.files).find(f=>f.type.startsWith('video/'));
   if(f) addFile(f);
 });
 
-function addFile(f) {
+function addFile(f){
   if(queue.find(i=>i.file.name===f.name&&i.file.size===f.size)) return;
   const item={file:f,displayName:f.name.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '),
     status:'pending',id:Date.now()+'_'+Math.random().toString(36).slice(2),compressedBlob:null};
-  queue.push(item);
-  renderQueueItem(item);
-  updateBtn();
+  queue.push(item); renderQueueItem(item); updateBtn();
 }
 
-function renderQueueItem(item) {
-  const el=document.createElement('div');
-  el.className='queue-item'; el.id='qi-'+item.id;
+function renderQueueItem(item){
+  const el=document.createElement('div'); el.className='queue-item'; el.id='qi-'+item.id;
   el.innerHTML=`
     <div class="qi-header">
       <span class="qi-name">${item.file.name}</span>
@@ -197,187 +557,112 @@ function renderQueueItem(item) {
   document.getElementById('qn-'+item.id).addEventListener('input',e=>{item.displayName=e.target.value;});
 }
 
-function updateBtn() {
-  const pending=queue.filter(i=>i.status==='pending').length;
-  const busy=queue.filter(i=>i.status==='compressing'||i.status==='uploading').length;
-  if(busy)         {uploadBtn.disabled=true;uploadBtn.textContent='Working…';return;}
-  if(pending>0)    {uploadBtn.disabled=false;uploadBtn.textContent=`Compress & Upload ${pending} video${pending>1?'s':''}`;return;}
-  if(queue.length) {uploadBtn.disabled=true;uploadBtn.textContent='All done ✓';return;}
-  uploadBtn.disabled=true; uploadBtn.textContent='Choose a video first';
+function updateBtn(){
+  const p=queue.filter(i=>i.status==='pending').length;
+  const b=queue.filter(i=>i.status==='compressing'||i.status==='uploading').length;
+  if(b){uploadBtn.disabled=true;uploadBtn.textContent='Working…';return;}
+  if(p){uploadBtn.disabled=false;uploadBtn.textContent=`Compress & Upload ${p} video${p>1?'s':''}`;return;}
+  if(queue.length){uploadBtn.disabled=true;uploadBtn.textContent='All done ✓';return;}
+  uploadBtn.disabled=true;uploadBtn.textContent='Choose a video first';
 }
 
-// ── COMPRESS IN BROWSER ───────────────────────────────────────
-// Uses MediaRecorder + canvas to downscale video
-async function compressVideo(item) {
-  if (compressScale === 0) {
-    // No compression — use original file
-    item.compressedBlob = item.file;
-    return true;
-  }
-
+// ── COMPRESS ─────────────────────────────────────────────────
+async function compressVideo(item){
+  if(compressScale===0){item.compressedBlob=item.file;return true;}
   const statusEl=document.getElementById('qs-'+item.id);
   const barEl=document.getElementById('qp-'+item.id);
   const detEl=document.getElementById('qd-'+item.id);
-
   item.status='compressing';
   if(statusEl) statusEl.textContent='🔄 Compressing…';
-
-  return new Promise((resolve) => {
+  return new Promise(resolve=>{
     const video=document.createElement('video');
     video.src=URL.createObjectURL(item.file);
     video.muted=true; video.playsInline=true; video.preload='auto';
-
-    video.onloadedmetadata = () => {
-      const origW=video.videoWidth, origH=video.videoHeight;
-      // Scale to target height, keep aspect ratio
-      const scale=Math.min(1, compressScale/Math.max(origW,origH));
-      const W=Math.round(origW*scale/2)*2;
-      const H=Math.round(origH*scale/2)*2;
-
+    video.onloadedmetadata=()=>{
+      const origW=video.videoWidth,origH=video.videoHeight;
+      const scale=Math.min(1,compressScale/Math.max(origW,origH));
+      const W=Math.round(origW*scale/2)*2,H=Math.round(origH*scale/2)*2;
       if(detEl) detEl.textContent=`${origW}×${origH} → ${W}×${H}`;
-
       const canvas2=document.createElement('canvas');
       canvas2.width=W; canvas2.height=H;
       const ctx2=canvas2.getContext('2d');
-
-      // Check if MediaRecorder supports mp4
-      const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
-        ? 'video/mp4;codecs=avc1'
-        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-        ? 'video/webm;codecs=vp8'
-        : 'video/webm';
-
+      const mimeType=MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')?'video/mp4;codecs=avc1':
+                     MediaRecorder.isTypeSupported('video/webm;codecs=vp8')?'video/webm;codecs=vp8':'video/webm';
       const chunks=[];
       let recorder;
-      try {
-        recorder=new MediaRecorder(canvas2.captureStream(30),{
-          mimeType, videoBitsPerSecond: compressScale>=720 ? 2_000_000 : 800_000
-        });
-      } catch(e) {
-        // MediaRecorder not supported — skip compression
-        if(detEl) detEl.textContent='Compression not supported, uploading original';
-        item.compressedBlob=item.file;
-        item.status='pending';
-        if(statusEl) statusEl.textContent='⏳ Ready (original)';
-        URL.revokeObjectURL(video.src);
-        resolve(true);
-        return;
-      }
-
-      recorder.ondataavailable=e=>{ if(e.data.size>0) chunks.push(e.data); };
+      try{ recorder=new MediaRecorder(canvas2.captureStream(30),{mimeType,videoBitsPerSecond:compressScale>=720?2000000:800000}); }
+      catch(e){ item.compressedBlob=item.file;item.status='pending';if(statusEl)statusEl.textContent='⏳ Ready (original)';URL.revokeObjectURL(video.src);resolve(true);return; }
+      recorder.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
       recorder.onstop=()=>{
         const ext=mimeType.includes('mp4')?'mp4':'webm';
         item.compressedBlob=new Blob(chunks,{type:mimeType});
-        // Give it a proper filename
         item.compressedFilename=item.file.name.replace(/\.[^.]+$/,'')+'.'+ext;
-        const newSizeMB=(item.compressedBlob.size/1024/1024).toFixed(1);
-        const origSizeMB=(item.file.size/1024/1024).toFixed(1);
-        if(detEl) detEl.textContent=`${origSizeMB}MB → ${newSizeMB}MB`;
-        if(statusEl) statusEl.textContent=`✓ Compressed`;
+        const n=(item.compressedBlob.size/1024/1024).toFixed(1),o=(item.file.size/1024/1024).toFixed(1);
+        if(detEl) detEl.textContent=`${o}MB → ${n}MB`;
+        if(statusEl) statusEl.textContent='✓ Compressed';
         if(barEl) barEl.style.width='100%';
-        URL.revokeObjectURL(video.src);
-        resolve(true);
+        URL.revokeObjectURL(video.src); resolve(true);
       };
-
-      recorder.start();
-      video.currentTime=0;
-      video.play();
-
+      recorder.start(); video.currentTime=0; video.play();
       let lastTime=-1;
-      function drawFrame() {
-        if(video.ended||video.paused){
-          recorder.stop(); return;
-        }
+      function drawFrame(){
+        if(video.ended||video.paused){recorder.stop();return;}
         if(video.currentTime!==lastTime){
-          lastTime=video.currentTime;
-          ctx2.drawImage(video,0,0,W,H);
-          // Update progress
-          if(video.duration>0){
-            const pct=Math.round((video.currentTime/video.duration)*100);
-            if(barEl) barEl.style.width=pct+'%';
-            if(statusEl) statusEl.textContent=`🔄 ${pct}%`;
-          }
+          lastTime=video.currentTime; ctx2.drawImage(video,0,0,W,H);
+          if(video.duration>0){const p=Math.round((video.currentTime/video.duration)*100);if(barEl)barEl.style.width=p+'%';if(statusEl)statusEl.textContent=`🔄 ${p}%`;}
         }
         requestAnimationFrame(drawFrame);
       }
       drawFrame();
     };
-
-    video.onerror=()=>{
-      if(detEl) detEl.textContent='Could not read video, uploading original';
-      item.compressedBlob=item.file;
-      item.status='pending';
-      if(statusEl) statusEl.textContent='⏳ Ready (original)';
-      resolve(true);
-    };
+    video.onerror=()=>{item.compressedBlob=item.file;item.status='pending';if(statusEl)statusEl.textContent='⏳ Ready (original)';resolve(true);};
   });
 }
 
-// ── UPLOAD ALL ────────────────────────────────────────────────
-uploadBtn.addEventListener('click', async () => {
+// ── UPLOAD ────────────────────────────────────────────────────
+uploadBtn.addEventListener('click',async()=>{
   updateBtn();
   const pending=queue.filter(i=>i.status==='pending');
   for(const item of pending){
-    // Step 1: compress
     await compressVideo(item);
-    // Step 2: upload chunks
-    item.status='uploading';
-    updateBtn();
+    item.status='uploading'; updateBtn();
     const ok=await uploadChunked(item);
-    item.status=ok?'done':'error';
-    updateBtn();
+    item.status=ok?'done':'error'; updateBtn();
   }
-  await refreshLibrary();
-  await checkServer();
+  await refreshLibrary(); await checkServerLib();
 });
 
-// ── CHUNKED UPLOAD ────────────────────────────────────────────
-async function uploadChunked(item) {
+async function uploadChunked(item){
   const blob=item.compressedBlob||item.file;
   const filename=item.compressedFilename||item.file.name;
   const totalChunks=Math.ceil(blob.size/CHUNK_SIZE);
   const uploadId=Date.now()+'_'+Math.random().toString(36).slice(2);
   const name=item.displayName||filename.replace(/\.[^.]+$/,'');
-
   const statusEl=document.getElementById('qs-'+item.id);
   const barEl=document.getElementById('qp-'+item.id);
   const detEl=document.getElementById('qd-'+item.id);
-
   if(barEl) barEl.style.width='0%';
-
   for(let i=0;i<totalChunks;i++){
-    const start=i*CHUNK_SIZE, end=Math.min(start+CHUNK_SIZE,blob.size);
+    const start=i*CHUNK_SIZE,end=Math.min(start+CHUNK_SIZE,blob.size);
     const chunk=blob.slice(start,end);
     if(statusEl) statusEl.textContent=`⬆️ ${Math.round((i/totalChunks)*100)}%`;
     if(barEl) barEl.style.width=Math.round((i/totalChunks)*100)+'%';
     if(detEl) detEl.textContent=`Chunk ${i+1}/${totalChunks}`;
-
     let success=false;
     for(let attempt=0;attempt<3;attempt++){
       try{
         const fd=new FormData();
-        fd.append('chunk',chunk);
-        fd.append('chunk_index',i);
-        fd.append('total_chunks',totalChunks);
-        fd.append('upload_id',uploadId);
-        fd.append('filename',filename);
-        fd.append('name',name);
+        fd.append('chunk',chunk); fd.append('chunk_index',i);
+        fd.append('total_chunks',totalChunks); fd.append('upload_id',uploadId);
+        fd.append('filename',filename); fd.append('name',name);
         const r=await fetch(UPLOAD_URL,{method:'POST',body:fd});
         if(!r.ok) throw new Error('HTTP '+r.status);
         const d=await r.json();
         if(!d.ok&&!d.chunk_received) throw new Error(d.error||'Chunk failed');
         success=true; break;
-      } catch(e){
-        if(detEl) detEl.textContent=`Chunk ${i+1}/${totalChunks} retry ${attempt+1}…`;
-        await new Promise(res=>setTimeout(res,1000*(attempt+1)));
-      }
+      }catch(e){ if(detEl) detEl.textContent=`Chunk ${i+1}/${totalChunks} retry ${attempt+1}…`; await new Promise(res=>setTimeout(res,1000*(attempt+1))); }
     }
-    if(!success){
-      if(statusEl) statusEl.textContent='❌ Failed';
-      if(barEl) barEl.classList.add('err');
-      showAlert('Upload failed: '+filename,'err');
-      return false;
-    }
+    if(!success){if(statusEl)statusEl.textContent='❌ Failed';if(barEl)barEl.classList.add('err');showAlert('Upload failed: '+filename,'err');return false;}
   }
   if(statusEl) statusEl.textContent='✅ Done';
   if(barEl) barEl.classList.add('done');
@@ -387,7 +672,6 @@ async function uploadChunked(item) {
 
 // ── LIBRARY ───────────────────────────────────────────────────
 document.getElementById('refresh-btn').addEventListener('click',refreshLibrary);
-
 async function refreshLibrary(){
   const listEl=document.getElementById('video-list');
   try{
@@ -398,13 +682,10 @@ async function refreshLibrary(){
     listEl.innerHTML='';
     videos.forEach(v=>{
       const el=document.createElement('div'); el.className='vl-item';
-      const thumbSrc=v.thumb?`videos/${v.thumb}#t=0`:`videos/${v.file}#t=2`;
+      const ts=v.thumb?`videos/${v.thumb}#t=0`:`videos/${v.file}#t=2`;
       el.innerHTML=`
-        <video class="vl-thumb" src="${thumbSrc}" muted preload="metadata"></video>
-        <div class="vl-info">
-          <div class="vl-name">${v.name}</div>
-          <div class="vl-file">${v.file}</div>
-        </div>
+        <video class="vl-thumb" src="${ts}" muted preload="metadata"></video>
+        <div class="vl-info"><div class="vl-name">${v.name}</div><div class="vl-file">${v.file}</div></div>
         <button class="vl-del" data-file="${v.file}">🗑</button>
       `;
       listEl.appendChild(el);
@@ -412,7 +693,7 @@ async function refreshLibrary(){
     listEl.querySelectorAll('.vl-del').forEach(btn=>{
       btn.addEventListener('click',()=>deleteVideo(btn.dataset.file,btn.closest('.vl-item')));
     });
-  } catch(e){listEl.innerHTML='<div class="vl-empty">No videos uploaded yet.</div>';}
+  }catch(e){listEl.innerHTML='<div class="vl-empty">No videos uploaded yet.</div>';}
 }
 
 async function deleteVideo(filename,rowEl){
@@ -422,7 +703,7 @@ async function deleteVideo(filename,rowEl){
     const fd=new FormData(); fd.append('action','delete'); fd.append('file',filename);
     const r=await fetch(UPLOAD_URL,{method:'POST',body:fd});
     const d=await r.json();
-    if(d.ok){showAlert('Deleted: '+filename,'ok');await refreshLibrary();await checkServer();}
+    if(d.ok){showAlert('Deleted: '+filename,'ok');await refreshLibrary();await checkServerLib();}
     else{showAlert('Delete failed: '+(d.error||''),'err');rowEl.style.opacity='1';}
   }catch(e){showAlert('Error: '+e.message,'err');rowEl.style.opacity='1';}
 }
@@ -433,8 +714,9 @@ function showAlert(msg,type){
   setTimeout(()=>el.remove(),5000);
 }
 
+// ── INIT ──────────────────────────────────────────────────────
 checkServer();
-refreshLibrary();
+loadSettings();
 </script>
 
 </body>
