@@ -8,14 +8,22 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="HandCam">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0a0a12">
+<meta name="theme-color" content="#0d0d1a">
 <link rel="manifest" href="manifest.json">
 <title>HandCam</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 :root {
-  --bg:#0a0a12; --surface:#12121e;
-  --accent:#7c6aff; --green:#4fffb0; --text:#f0eeff; --muted:#7870aa;
+  --bg:#0d0d1a;
+  --surface:#1a1a2e;
+  --accent:#6c63ff;
+  --accent2:#ff6584;
+  --green:#00e5a0;
+  --yellow:#ffd166;
+  --text:#ffffff;
+  --text2:#d0ccff;
+  --muted:#8880bb;
+  --tile-border:rgba(255,255,255,.12);
 }
 html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text);
   font-family:'Segoe UI',system-ui,sans-serif; -webkit-user-select:none; user-select:none; }
@@ -24,88 +32,92 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 #permission-screen { position:fixed; inset:0; display:flex; flex-direction:column;
 align-items:center; justify-content:center; gap:28px; background:var(–bg);
 z-index:1000; padding:32px; text-align:center; }
-#permission-screen h1 { font-size:clamp(2rem,8vw,4rem); font-weight:900; }
-#permission-screen p  { font-size:clamp(1rem,3.5vw,1.4rem); color:var(–muted); max-width:480px; line-height:1.6; }
-#start-btn { font-size:clamp(1.2rem,5vw,2rem); padding:22px 52px; border:none; border-radius:24px;
-background:var(–accent); color:#fff; cursor:pointer; font-weight:800;
-box-shadow:0 0 40px rgba(124,106,255,.5); touch-action:manipulation; }
+#permission-screen h1 { font-size:clamp(2.4rem,9vw,5rem); font-weight:900; color:var(–text);
+text-shadow:0 0 40px rgba(108,99,255,.6); }
+#permission-screen p  { font-size:clamp(1.1rem,3.5vw,1.5rem); color:var(–text2); max-width:480px; line-height:1.7; }
+#start-btn { font-size:clamp(1.3rem,5vw,2rem); padding:24px 60px; border:none; border-radius:28px;
+background:linear-gradient(135deg,var(–accent),var(–accent2)); color:#fff; cursor:pointer; font-weight:800;
+box-shadow:0 0 50px rgba(108,99,255,.6); touch-action:manipulation; letter-spacing:.02em; }
 
 /* STATUS BAR */
-#status-bar { display:none; padding:5px 14px; background:var(–surface);
-border-bottom:1px solid rgba(255,255,255,.06); font-size:.78rem; color:var(–muted);
-align-items:center; gap:10px; min-height:36px; flex-shrink:0; }
+#status-bar { display:none; padding:6px 16px; background:rgba(26,26,46,.95);
+border-bottom:1px solid rgba(255,255,255,.08); font-size:.8rem; color:var(–text2);
+align-items:center; gap:12px; min-height:38px; flex-shrink:0; }
 #status-bar.show { display:flex; }
-.sdot { width:8px; height:8px; border-radius:50%; background:#333; flex-shrink:0; transition:background .3s; }
-.sdot.ok   { background:var(–green); box-shadow:0 0 5px var(–green); }
-.sdot.warn { background:#ffb84f; }
-.sbar-btn { background:none; border:1px solid rgba(255,255,255,.14); color:var(–muted);
-padding:3px 11px; border-radius:20px; cursor:pointer; font-size:.73rem; touch-action:manipulation; }
+.sdot { width:9px; height:9px; border-radius:50%; background:#333; flex-shrink:0; transition:background .3s; }
+.sdot.ok   { background:var(–green); box-shadow:0 0 6px var(–green); }
+.sdot.warn { background:var(–yellow); }
+.sbar-btn { background:none; border:1px solid rgba(255,255,255,.18); color:var(–text2);
+padding:3px 12px; border-radius:20px; cursor:pointer; font-size:.75rem; touch-action:manipulation; }
 .sbar-btn.on { border-color:var(–accent); color:var(–accent); }
-#sbar-right { margin-left:auto; display:flex; gap:7px; align-items:center; }
+#sbar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
 /* MAIN */
-#main { position:relative; overflow:hidden; display:none; width:100%; height:calc(100vh - 36px); }
+#main { position:relative; overflow:hidden; display:none; width:100%; height:calc(100vh - 38px); }
 #main.show { display:block; }
 #ui-canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
 #cam-video { position:absolute; top:-9999px; left:-9999px; width:320px; height:240px; }
 
 /* Camera PiP */
 #cam-preview { position:absolute; top:10px; left:10px; width:160px; height:120px;
-border-radius:10px; overflow:hidden; border:2px solid rgba(124,106,255,.5);
-box-shadow:0 4px 20px rgba(0,0,0,.6); z-index:50; display:none; }
+border-radius:12px; overflow:hidden; border:2px solid rgba(108,99,255,.6);
+box-shadow:0 4px 24px rgba(0,0,0,.7); z-index:50; display:none; }
 #cam-preview.show { display:block; }
 #preview-canvas { width:100%; height:100%; transform:scaleX(-1); }
 
 #sound-flash { position:absolute; inset:0; pointer-events:none;
-background:rgba(79,255,176,.12); opacity:0; z-index:60; transition:opacity .1s; }
+background:rgba(0,229,160,.1); opacity:0; z-index:60; transition:opacity .1s; }
 
-/* Loading overlay */
+/* Loading */
 #loading { position:absolute; inset:0; background:var(–bg); display:flex; flex-direction:column;
-align-items:center; justify-content:center; gap:18px; z-index:90; }
+align-items:center; justify-content:center; gap:20px; z-index:90; }
 #loading.gone { display:none; }
-.spinner { width:48px; height:48px; border:4px solid rgba(124,106,255,.2);
+.spinner { width:52px; height:52px; border:4px solid rgba(108,99,255,.25);
 border-top-color:var(–accent); border-radius:50%; animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
-#load-msg { color:var(–muted); font-size:.95rem; }
+#load-msg { color:var(–text2); font-size:1rem; font-weight:500; }
 
 /* Video overlay */
 #video-overlay { position:fixed; inset:0; background:#000; z-index:500;
 display:none; flex-direction:column; align-items:center; justify-content:center; }
 #video-overlay.show { display:flex; }
 #full-video { width:100%; height:100%; object-fit:contain; background:#000; }
-#close-video { position:absolute; top:18px; right:18px; width:52px; height:52px;
-border-radius:50%; background:rgba(0,0,0,.75); border:2px solid rgba(255,255,255,.3);
-color:#fff; font-size:1.3rem; cursor:pointer; display:flex; align-items:center;
-justify-content:center; z-index:10; touch-action:manipulation; }
-
-/* Video loading progress bar */
-#video-loading {
-position:absolute; bottom:0; left:0; right:0; height:5px;
-background:rgba(255,255,255,.1); z-index:20; display:none;
-}
+#close-video { position:absolute; top:20px; right:20px; width:56px; height:56px;
+border-radius:50%; background:rgba(0,0,0,.8); border:2px solid rgba(255,255,255,.4);
+color:#fff; font-size:1.4rem; cursor:pointer; display:flex; align-items:center;
+justify-content:center; z-index:10; touch-action:manipulation; font-weight:700; }
+#video-loading { position:absolute; bottom:0; left:0; right:0; height:6px;
+background:rgba(255,255,255,.1); z-index:20; display:none; }
 #video-loading.show { display:block; }
-#video-loading-bar {
-height:100%; background:var(–accent); width:0%;
-transition:width .3s; border-radius:2px;
-}
-#video-loading-msg {
-position:absolute; bottom:12px; left:50%; transform:translateX(-50%);
-color:rgba(255,255,255,.6); font-size:.85rem; white-space:nowrap;
-z-index:21; display:none;
-}
+#video-loading-bar { height:100%; background:var(–accent); width:0%; transition:width .3s; border-radius:3px; }
+#video-loading-msg { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap; z-index:21; display:none; }
 #video-loading-msg.show { display:block; }
 
+/* Ballz game overlay */
+#ballz-overlay { position:fixed; inset:0; z-index:400; display:none; }
+#ballz-overlay.show { display:block; }
+#ballz-canvas { position:absolute; inset:0; width:100%; height:100%; }
+#ballz-cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+transform:scaleX(-1); /* mirror selfie cam */ }
+#ballz-close { position:absolute; top:16px; right:16px;
+width:80px; height:80px; border-radius:20px;
+background:rgba(220,50,50,.85); border:3px solid rgba(255,255,255,.5);
+color:#fff; font-size:2rem; font-weight:900; cursor:pointer;
+display:flex; align-items:center; justify-content:center;
+z-index:10; touch-action:manipulation; box-shadow:0 4px 20px rgba(0,0,0,.6); }
+
 /* Debug */
-#debug { position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,.9);
+#debug { position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,.92);
 color:var(–green); font-family:monospace; font-size:12px; padding:7px 11px;
 z-index:200; max-height:150px; overflow-y:auto; display:none; border-top:1px solid #333; }
 #debug.show { display:block; }
 #debug-toggle { position:fixed; bottom:7px; right:7px; background:rgba(0,0,0,.7);
-color:#777; border:1px solid #444; border-radius:6px; padding:4px 9px;
+color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
 font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; }
 
 @keyframes fadeUp {
-from{opacity:0;transform:translateX(-50%) translateY(14px);}
+from{opacity:0;transform:translateX(-50%) translateY(16px);}
 to{opacity:1;transform:translateX(-50%) translateY(0);}
 }
 </style>
@@ -118,7 +130,7 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
 
 <div id="permission-screen">
   <h1>👋 HandCam</h1>
-  <p>Move your hand in front of the camera to control the cursor.<br>Hover a tile to select it.</p>
+  <p>Move your hand in front of the camera to control the cursor. Hover a tile to select it.</p>
   <button id="start-btn">Tap to Start</button>
 </div>
 
@@ -140,6 +152,8 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
   <div id="loading"><div class="spinner"></div><div id="load-msg">Loading…</div></div>
 </div>
 
+<!-- Video player -->
+
 <div id="video-overlay">
   <video id="full-video" playsinline></video>
   <button id="close-video">✕</button>
@@ -147,38 +161,55 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
   <div id="video-loading-msg">Loading video…</div>
 </div>
 
+<!-- Ballz! Game -->
+
+<div id="ballz-overlay">
+  <video id="ballz-cam" playsinline autoplay muted></video>
+  <canvas id="ballz-canvas"></canvas>
+  <button id="ballz-close">✕</button>
+</div>
+
 <script src="https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
 
 <script>
 'use strict';
 
-// ── CONFIG ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
 const CFG = {
-  dwellMs:2000, sensitivity:1.8, smoothing:0.18, cursorRadius:38,
+  dwellMs:2000, sensitivity:1.8, smoothing:0.18, cursorRadius:40,
   soundThreshold:0.18, soundCooldownMs:800,
   previewOn:false, micOn:false,
   scrollZone:0.14, scrollSpeed:5,
 };
 
-// ── DEBUG ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  DEBUG
+// ═══════════════════════════════════════════════════════════
 const debugEl=document.getElementById('debug');
 document.getElementById('debug-toggle').addEventListener('click',()=>debugEl.classList.toggle('show'));
-function dbg(m,c){const d=document.createElement('div'),t=new Date().toLocaleTimeString('en',{hour12:false});d.style.color=c||'#4fffb0';d.textContent=`[${t}] ${m}`;debugEl.appendChild(d);debugEl.scrollTop=debugEl.scrollHeight;while(debugEl.children.length>50)debugEl.removeChild(debugEl.firstChild);}
-function dbgOk(m){dbg('✓ '+m,'#4fffb0');}function dbgErr(m){dbg('❌ '+m,'#ff6a6a');}function dbgWarn(m){dbg('⚠ '+m,'#ffb84f');}
+function dbg(m,c){const d=document.createElement('div'),t=new Date().toLocaleTimeString('en',{hour12:false});d.style.color=c||'#00e5a0';d.textContent=`[${t}] ${m}`;debugEl.appendChild(d);debugEl.scrollTop=debugEl.scrollHeight;while(debugEl.children.length>50)debugEl.removeChild(debugEl.firstChild);}
+function dbgOk(m){dbg('✓ '+m,'#00e5a0');}function dbgErr(m){dbg('❌ '+m,'#ff6584');}function dbgWarn(m){dbg('⚠ '+m,'#ffd166');}
 const _ce=console.error.bind(console);console.error=(...a)=>{_ce(...a);dbgErr(a.join(' '));};
 const _cw=console.warn.bind(console);console.warn=(...a)=>{_cw(...a);dbgWarn(a.join(' '));};
 
-// ── STATE ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
 const state = {
   cx:.5,cy:.5,sx:.5,sy:.5,handVisible:false,
   hoveredTile:null,dwellStart:null,dwellProgress:0,
   lastSoundTime:0,micStream:null,audioCtx:null,analyser:null,
-  screen:'menu',   // 'menu' | 'videos' | 'music' | 'games' | 'other' | 'settings'
-  scrollY:0, scrollTarget:0,
-  videos:[], thumbCache:{},
+  screen:'menu',
+  scrollY:0,scrollTarget:0,
+  videos:[],thumbCache:{},
+  camStream:null,
 };
 
-// ── DOM ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  DOM
+// ═══════════════════════════════════════════════════════════
 const permScreen=document.getElementById('permission-screen');
 const startBtn=document.getElementById('start-btn');
 const statusBar=document.getElementById('status-bar');
@@ -203,158 +234,144 @@ const closeVideoBtn=document.getElementById('close-video');
 const videoLoadingBar=document.getElementById('video-loading-bar');
 const videoLoadingEl=document.getElementById('video-loading');
 const videoLoadingMsg=document.getElementById('video-loading-msg');
+const ballzOverlay=document.getElementById('ballz-overlay');
+const ballzCam=document.getElementById('ballz-cam');
+const ballzCanvas=document.getElementById('ballz-canvas');
+const ballzClose=document.getElementById('ballz-close');
 
-// ── COLORS ───────────────────────────────────────────────────
-const COLORS=['#7c6aff','#ff6a9e','#ffa86a','#4fffb0','#6afffa','#ff9f43','#a29bfe','#fd79a8','#55efc4','#fdcb6e'];
+// ═══════════════════════════════════════════════════════════
+//  COLOURS & THEME
+// ═══════════════════════════════════════════════════════════
+const TILE_COLORS=['#6c63ff','#ff6584','#ff9f43','#00e5a0','#4ecdc4','#a29bfe','#fd79a8','#ffeaa7','#74b9ff','#55efc4'];
+const BACK_COLOR='#cc2244';
 
-// ── SCREEN DEFINITIONS ───────────────────────────────────────
-// Each screen returns an array of tile definitions
-// Tiles are laid out in a grid automatically
-
+// ═══════════════════════════════════════════════════════════
+//  SCREEN / TILE DEFINITIONS
+// ═══════════════════════════════════════════════════════════
 function getScreenTiles() {
   const W=canvas.width, H=canvas.height;
 
-  if (state.screen==='menu') {
-    return layoutGrid([
-      { id:'goto_videos',  label:'🎬',    sublabel:'Videos',  color:'#7c6aff', action:'nav', target:'videos'   },
-      { id:'goto_music',   label:'🎵',    sublabel:'Music',   color:'#ff6a9e', action:'nav', target:'music'    },
-      { id:'goto_games',   label:'🎮',    sublabel:'Games',   color:'#ffa86a', action:'nav', target:'games'    },
-      { id:'goto_other',   label:'⭐',    sublabel:'Other',   color:'#4fffb0', action:'nav', target:'other'    },
-    ], W, H, 2, false);
-  }
+  if(state.screen==='menu') return layoutGrid([
+    {id:'goto_videos', label:'🎬', sublabel:'Videos',  color:'#6c63ff', action:'nav', target:'videos'},
+    {id:'goto_music',  label:'🎵', sublabel:'Music',   color:'#ff6584', action:'nav', target:'music'},
+    {id:'goto_games',  label:'🎮', sublabel:'Games',   color:'#ff9f43', action:'nav', target:'games'},
+    {id:'goto_other',  label:'⭐', sublabel:'Other',   color:'#00e5a0', action:'nav', target:'other'},
+  ],W,H,2,false);
 
-  if (state.screen==='videos') {
-    const vTiles = state.videos.map((v,i)=>({
-      id:'vid_'+i, label:'', sublabel:v.name, color:COLORS[i%COLORS.length],
+  if(state.screen==='videos'){
+    const vTiles=state.videos.map((v,i)=>({
+      id:'vid_'+i, label:'', sublabel:v.name, color:TILE_COLORS[i%TILE_COLORS.length],
       action:'video', src:v.src, vidId:v.id,
     }));
-    const all = [backTile(), ...vTiles];
-    return layoutGrid(all, W, H, 2, true);
+    return layoutGrid([backTile(),...vTiles],W,H,2,true);
   }
 
-  if (state.screen==='music') {
-    return layoutGrid([
-      backTile(),
-      { id:'music_piano',  label:'🎹', sublabel:'Piano',  color:'#7c6aff', action:'music', inst:'piano'  },
-      { id:'music_guitar', label:'🎸', sublabel:'Guitar', color:'#ff6a9e', action:'music', inst:'guitar' },
-      { id:'music_drums',  label:'🥁', sublabel:'Drums',  color:'#ffa86a', action:'music', inst:'drums'  },
-    ], W, H, 2, false);
-  }
+  if(state.screen==='music') return layoutGrid([
+    backTile(),
+    {id:'music_piano', label:'🎹', sublabel:'Piano',  color:'#6c63ff', action:'comingsoon'},
+    {id:'music_guitar',label:'🎸', sublabel:'Guitar', color:'#ff6584', action:'comingsoon'},
+    {id:'music_drums', label:'🥁', sublabel:'Drums',  color:'#ff9f43', action:'comingsoon'},
+  ],W,H,2,false);
 
-  if (state.screen==='games') {
-    return layoutGrid([
-      backTile(),
-      { id:'game_dressup',   label:'👗', sublabel:'Dress Up',  color:'#ff6a9e', action:'game', game:'dressup'   },
-      { id:'game_catapult',  label:'🏹', sublabel:'Catapult',  color:'#ffa86a', action:'game', game:'catapult'  },
-      { id:'game_other',     label:'🎲', sublabel:'More Games',color:'#4fffb0', action:'nav',  target:'games2'  },
-    ], W, H, 2, false);
-  }
+  if(state.screen==='games') return layoutGrid([
+    backTile(),
+    {id:'game_dressup',  label:'👗', sublabel:'Dress Up',  color:'#ff6584', action:'comingsoon'},
+    {id:'game_catapult', label:'🏹', sublabel:'Catapult',  color:'#ff9f43', action:'comingsoon'},
+    {id:'game_ballz',    label:'🔵', sublabel:'Ballz!',    color:'#4ecdc4', action:'ballz'},
+  ],W,H,2,false);
 
-  if (state.screen==='games2') {
-    return layoutGrid([
-      backTile('games'),
-      { id:'g2_1', label:'1', sublabel:'Game 1', color:'#7c6aff', action:'game', game:'game1' },
-      { id:'g2_2', label:'2', sublabel:'Game 2', color:'#ff6a9e', action:'game', game:'game2' },
-      { id:'g2_3', label:'3', sublabel:'Game 3', color:'#ffa86a', action:'game', game:'game3' },
-    ], W, H, 2, false);
-  }
+  if(state.screen==='other') return layoutGrid([
+    backTile(),
+    {id:'oth_1',label:'1',sublabel:'Option 1',color:'#6c63ff',action:'comingsoon'},
+    {id:'oth_2',label:'2',sublabel:'Option 2',color:'#ff6584',action:'comingsoon'},
+    {id:'oth_3',label:'3',sublabel:'Option 3',color:'#ff9f43',action:'comingsoon'},
+  ],W,H,2,false);
 
-  if (state.screen==='other') {
-    return layoutGrid([
-      backTile(),
-      { id:'oth_1', label:'1', sublabel:'Option 1', color:'#7c6aff', action:'placeholder' },
-      { id:'oth_2', label:'2', sublabel:'Option 2', color:'#ff6a9e', action:'placeholder' },
-      { id:'oth_3', label:'3', sublabel:'Option 3', color:'#ffa86a', action:'placeholder' },
-    ], W, H, 2, false);
-  }
-
-  if (state.screen==='settings') {
-    const pad=18, tW=(W-pad*3)/2, tH=88;
+  if(state.screen==='settings') {
+    const pad=18,tW=(canvas.width-pad*3)/2,tH=92;
     return [
-      {id:'dwell+',label:'⏱',sublabel:`Dwell + (${(CFG.dwellMs/1000).toFixed(1)}s)`,x:pad,y:pad,w:tW,h:tH,action:'dwell+',color:'#7c6aff'},
-      {id:'dwell-',label:'⏱',sublabel:`Dwell − (${(CFG.dwellMs/1000).toFixed(1)}s)`,x:pad*2+tW,y:pad,w:tW,h:tH,action:'dwell-',color:'#7c6aff'},
-      {id:'sens+', label:'🎯',sublabel:`Sens + (${CFG.sensitivity.toFixed(1)})`,x:pad,y:pad*2+tH,w:tW,h:tH,action:'sens+',color:'#ff6a9e'},
-      {id:'sens-', label:'🎯',sublabel:`Sens − (${CFG.sensitivity.toFixed(1)})`,x:pad*2+tW,y:pad*2+tH,w:tW,h:tH,action:'sens-',color:'#ff6a9e'},
-      {id:'mic',   label:'🎤',sublabel:CFG.micOn?'Mic ON':'Mic OFF',x:pad,y:pad*3+tH*2,w:tW,h:tH,action:'mic',color:'#4fffb0'},
-      {id:'preview',label:'📷',sublabel:CFG.previewOn?'Preview ON':'Preview OFF',x:pad*2+tW,y:pad*3+tH*2,w:tW,h:tH,action:'preview',color:'#6afffa'},
-      {id:'back',  label:'✕', sublabel:'Back',x:pad,y:pad*4+tH*3,w:W-pad*2,h:tH,action:'back',color:'#cc4444'},
+      {id:'dwell+',label:'⏱',sublabel:`Dwell + (${(CFG.dwellMs/1000).toFixed(1)}s)`,x:pad,y:pad,w:tW,h:tH,action:'dwell+',color:'#6c63ff'},
+      {id:'dwell-',label:'⏱',sublabel:`Dwell − (${(CFG.dwellMs/1000).toFixed(1)}s)`,x:pad*2+tW,y:pad,w:tW,h:tH,action:'dwell-',color:'#6c63ff'},
+      {id:'sens+', label:'🎯',sublabel:`Sens + (${CFG.sensitivity.toFixed(1)})`,x:pad,y:pad*2+tH,w:tW,h:tH,action:'sens+',color:'#ff6584'},
+      {id:'sens-', label:'🎯',sublabel:`Sens − (${CFG.sensitivity.toFixed(1)})`,x:pad*2+tW,y:pad*2+tH,w:tW,h:tH,action:'sens-',color:'#ff6584'},
+      {id:'mic',   label:'🎤',sublabel:CFG.micOn?'Mic ON':'Mic OFF',x:pad,y:pad*3+tH*2,w:tW,h:tH,action:'mic',color:'#00e5a0'},
+      {id:'preview',label:'📷',sublabel:CFG.previewOn?'Preview ON':'Preview OFF',x:pad*2+tW,y:pad*3+tH*2,w:tW,h:tH,action:'preview',color:'#4ecdc4'},
+      {id:'back',label:'✕',sublabel:'Back',x:pad,y:pad*4+tH*3,w:canvas.width-pad*2,h:tH,action:'back',color:BACK_COLOR},
     ];
   }
-
   return [];
 }
 
 function backTile(target) {
-  return { id:'back', label:'✕', sublabel:'Menu', color:'#cc3333',
-    action: target ? 'nav' : 'back', target: target||'menu' };
+  return {id:'back',label:'✕',sublabel:'Menu',color:BACK_COLOR,
+    action:target?'nav':'back',target:target||'menu'};
 }
 
-function layoutGrid(tiles, W, H, cols, scrollable) {
+function layoutGrid(tiles,W,H,cols,scrollable){
   const pad=18;
   const tileW=(W-pad*(cols+1))/cols;
   const rows=Math.ceil(tiles.length/cols);
   const tileH=scrollable
-    ? Math.max(160, Math.min(220, (H-pad*(3))/2))
-    : Math.min((H-pad*(rows+1))/rows, 260);
-
+    ? Math.max(160,Math.min(220,(H-pad*3)/2))
+    : Math.min((H-pad*(rows+1))/rows,260);
   return tiles.map((t,i)=>{
     const col=i%cols, row=Math.floor(i/cols);
-    return { ...t,
-      x: pad+col*(tileW+pad),
-      y: pad+row*(tileH+pad) - (scrollable ? state.scrollY : 0),
-      w: tileW, h: tileH,
-    };
+    return{...t,
+      x:pad+col*(tileW+pad),
+      y:pad+row*(tileH+pad)-(scrollable?state.scrollY:0),
+      w:tileW,h:tileH};
   });
 }
 
-function isScrollable() { return state.screen==='videos'; }
+function isScrollable(){return state.screen==='videos';}
 
-function maxScroll() {
-  if (!isScrollable()) return 0;
-  const W=canvas.width, H=canvas.height, pad=18, cols=2;
-  const tileW=(W-pad*(cols+1))/cols;
+function maxScroll(){
+  if(!isScrollable()) return 0;
+  const W=canvas.width,H=canvas.height,pad=18,cols=2;
   const tileH=Math.max(160,Math.min(220,(H-pad*3)/2));
-  const n=state.videos.length+1; // +1 for back tile
+  const n=state.videos.length+1;
   const rows=Math.ceil(n/cols);
-  const total=rows*(tileH+pad)+pad;
-  return Math.max(0, total-H);
+  return Math.max(0,rows*(tileH+pad)+pad-H);
 }
 
-// ── VIDEO LIBRARY ────────────────────────────────────────────
-async function loadVideoLibrary() {
-  try {
+// ═══════════════════════════════════════════════════════════
+//  VIDEO LIBRARY
+// ═══════════════════════════════════════════════════════════
+const COLORS=TILE_COLORS;
+async function loadVideoLibrary(){
+  try{
     const r=await fetch('videos/index.json');
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const list=await r.json();
     state.videos=list.map((v,i)=>({
       id:'vid_'+i,
-      name: v.name||v.file.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '),
-      src: 'videos/'+v.file,
-      thumb: v.thumb ? 'videos/'+v.thumb : null,
-      color: COLORS[i%COLORS.length],
+      name:v.name||v.file.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '),
+      src:'videos/'+v.file,
+      thumb:v.thumb?'videos/'+v.thumb:null,
+      color:COLORS[i%COLORS.length],
     }));
     dbgOk(`${state.videos.length} videos loaded`);
     state.videos.forEach(v=>v.thumb?loadServerThumb(v):generateThumb(v));
-  } catch(e) {
+  }catch(e){
     dbgWarn('No index.json: '+e.message);
     state.videos=[];
   }
 }
 
-async function loadServerThumb(video) {
-  try {
+async function loadServerThumb(video){
+  try{
     const img=new Image(); img.crossOrigin='anonymous';
     await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=video.thumb+'?t=1';});
     const c=document.createElement('canvas'); c.width=320; c.height=180;
     c.getContext('2d').drawImage(img,0,0,320,180);
-    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.8));
+    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.85));
     state.thumbCache[video.src]=await createImageBitmap(blob);
-  } catch(e) { generateThumb(video); }
+  }catch(e){generateThumb(video);}
 }
 
-async function generateThumb(video) {
-  if (!video.src) return;
-  try {
+async function generateThumb(video){
+  if(!video.src) return;
+  try{
     const v=document.createElement('video');
     v.src=video.src; v.muted=true; v.playsInline=true; v.preload='metadata';
     await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=rej;v.load();});
@@ -362,171 +379,195 @@ async function generateThumb(video) {
     await new Promise(res=>{v.onseeked=res;});
     const c=document.createElement('canvas'); c.width=320; c.height=180;
     c.getContext('2d').drawImage(v,0,0,320,180);
-    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.7));
+    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.75));
     state.thumbCache[video.src]=await createImageBitmap(blob);
-  } catch(e) { dbgWarn('Thumb fail: '+video.name); }
+  }catch(e){dbgWarn('Thumb fail: '+video.name);}
 }
 
-// ── RESIZE ───────────────────────────────────────────────────
-function resize() {
+// ═══════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════
+function resize(){
   canvas.width=mainDiv.offsetWidth; canvas.height=mainDiv.offsetHeight;
   prevCanvas.width=160; prevCanvas.height=120;
 }
 
-// ── RENDER ───────────────────────────────────────────────────
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 
-function render(ts) {
-  const W=canvas.width, H=canvas.height;
+function render(ts){
+  const W=canvas.width,H=canvas.height;
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#0a0a12'; ctx.fillRect(0,0,W,H);
 
-  // Subtle grid
-  ctx.strokeStyle='rgba(124,106,255,.03)'; ctx.lineWidth=1;
-  for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-  for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  // Background gradient
+  const bgGrad=ctx.createLinearGradient(0,0,0,H);
+  bgGrad.addColorStop(0,'#0d0d1a'); bgGrad.addColorStop(1,'#12122a');
+  ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
+
+  // Subtle dot grid
+  ctx.fillStyle='rgba(108,99,255,.06)';
+  for(let x=30;x<W;x+=40) for(let y=30;y<H;y+=40){
+    ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fill();
+  }
 
   const tiles=getScreenTiles();
 
   // Screen title
-  const titles={menu:'',videos:'🎬 Videos',music:'🎵 Music',games:'🎮 Games',
-    other:'⭐ Other',games2:'🎲 More Games',settings:'⚙️ Settings'};
+  const titles={menu:'',videos:'🎬  Videos',music:'🎵  Music',games:'🎮  Games',
+    other:'⭐  Other',settings:'⚙️  Settings'};
   const title=titles[state.screen]||'';
   if(title){
-    ctx.save(); ctx.fillStyle='rgba(240,238,255,.25)';
-    ctx.font='600 16px Segoe UI,system-ui,sans-serif';
+    ctx.save(); ctx.fillStyle='rgba(255,255,255,.35)';
+    ctx.font='700 17px Segoe UI,system-ui,sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='top';
-    ctx.fillText(title, W/2, 6); ctx.restore();
+    ctx.fillText(title,W/2,8); ctx.restore();
   }
 
   // Scroll arrows
   if(isScrollable()){
-    if(state.scrollY>0) drawArrow(W/2,24,'up');
-    if(state.scrollY<maxScroll()) drawArrow(W/2,H-24,'down');
+    if(state.scrollY>0) drawArrow(W/2,26,'up');
+    if(state.scrollY<maxScroll()) drawArrow(W/2,H-26,'down');
   }
 
-  // Draw tiles
+  // TILES
   for(const tile of tiles){
     if(tile.y+tile.h<0||tile.y>H) continue;
     const hov=state.hoveredTile===tile.id;
     const isBack=tile.id==='back';
 
-    // Glow
+    // Outer glow on hover
     if(hov){
-      ctx.save(); ctx.shadowColor=tile.color; ctx.shadowBlur=30;
-      ctx.fillStyle=tile.color+'18';
-      rr(tile.x,tile.y,tile.w,tile.h,20); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.shadowColor=tile.color; ctx.shadowBlur=36;
+      ctx.fillStyle=tile.color+'20';
+      rr(tile.x,tile.y,tile.w,tile.h,22); ctx.fill(); ctx.restore();
     }
 
-    // Body
+    // Tile background
     ctx.save();
     if(isBack){
-      ctx.fillStyle=hov?'#2a1010':'#1a0a0a';
+      ctx.fillStyle=hov?'#3a0a14':'#280a0f';
     } else {
-      const g=ctx.createLinearGradient(tile.x,tile.y,tile.x+tile.w,tile.y+tile.h);
-      g.addColorStop(0,hov?'#21213a':'#13132a');
-      g.addColorStop(1,hov?'#191930':'#0d0d1e');
+      const g=ctx.createLinearGradient(tile.x,tile.y,tile.x,tile.y+tile.h);
+      if(hov){
+        g.addColorStop(0,tile.color+'40');
+        g.addColorStop(1,tile.color+'15');
+      } else {
+        g.addColorStop(0,'#1e1e38');
+        g.addColorStop(1,'#141428');
+      }
       ctx.fillStyle=g;
     }
-    rr(tile.x,tile.y,tile.w,tile.h,20); ctx.fill();
-    ctx.strokeStyle=hov?tile.color+'bb':'rgba(255,255,255,.07)';
+    rr(tile.x,tile.y,tile.w,tile.h,22); ctx.fill();
+
+    // Border
+    ctx.strokeStyle=hov?tile.color+'dd':isBack?'rgba(200,50,80,.3)':'rgba(255,255,255,.1)';
     ctx.lineWidth=hov?2.5:1.5;
-    rr(tile.x,tile.y,tile.w,tile.h,20); ctx.stroke();
+    rr(tile.x,tile.y,tile.w,tile.h,22); ctx.stroke();
     ctx.restore();
 
-    // Thumbnail (video tiles)
+    // Thumbnail for video tiles
     const vid=state.videos.find(v=>v.id===tile.vidId);
     if(vid&&state.thumbCache[vid.src]){
       ctx.save();
-      rr(tile.x,tile.y,tile.w,tile.h,20); ctx.clip();
+      rr(tile.x,tile.y,tile.w,tile.h,22); ctx.clip();
       const tb=state.thumbCache[vid.src];
       const sc=Math.max(tile.w/tb.width,tile.h/tb.height);
-      const dw=tb.width*sc, dh=tb.height*sc;
-      ctx.globalAlpha=0.5;
+      const dw=tb.width*sc,dh=tb.height*sc;
+      ctx.globalAlpha=0.45;
       ctx.drawImage(tb,tile.x+(tile.w-dw)/2,tile.y+(tile.h-dh)/2,dw,dh);
       ctx.globalAlpha=1;
       const ov=ctx.createLinearGradient(tile.x,tile.y,tile.x,tile.y+tile.h);
-      ov.addColorStop(0,'rgba(10,10,18,.05)'); ov.addColorStop(1,'rgba(10,10,18,.75)');
+      ov.addColorStop(0,'rgba(13,13,26,.1)'); ov.addColorStop(1,'rgba(13,13,26,.8)');
       ctx.fillStyle=ov; ctx.fillRect(tile.x,tile.y,tile.w,tile.h);
       ctx.restore();
     }
 
-    // Emoji / big label
-    const emojiSize=isBack ? Math.min(tile.h*.45,80) : Math.min(tile.h*.42,72);
-    ctx.save();
-    ctx.font=`${emojiSize}px serif`;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    const labelY = tile.sublabel
-      ? tile.y + tile.h*.42
-      : tile.y + tile.h/2;
-    ctx.fillText(tile.label, tile.x+tile.w/2, labelY);
-    ctx.restore();
+    // Emoji / icon
+    if(tile.label){
+      const emojiSize=isBack?Math.min(tile.h*.5,90):Math.min(tile.h*.44,76);
+      ctx.save();
+      ctx.font=`${emojiSize}px serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const labelY=tile.sublabel ? tile.y+tile.h*.42 : tile.y+tile.h/2;
+      ctx.fillText(tile.label,tile.x+tile.w/2,labelY);
+      ctx.restore();
+    }
 
     // Sublabel
     if(tile.sublabel){
-      const fs=Math.min(tile.w/9,18);
+      const fs=Math.min(tile.w/8,20);
       let sub=tile.sublabel;
       ctx.save();
-      ctx.font=`600 ${fs}px 'Segoe UI',system-ui,sans-serif`;
+      ctx.font=`700 ${fs}px 'Segoe UI',system-ui,sans-serif`;
       ctx.textAlign='center'; ctx.textBaseline='bottom';
-      ctx.fillStyle=hov?'#fff':'rgba(240,238,255,.75)';
-      ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=8;
-      const maxW=tile.w-16;
+      ctx.fillStyle=hov?'#ffffff':'rgba(255,255,255,.88)';
+      ctx.shadowColor='rgba(0,0,0,.95)'; ctx.shadowBlur=10;
+      const maxW=tile.w-18;
       while(sub.length>3&&ctx.measureText(sub).width>maxW) sub=sub.slice(0,-1);
       if(sub!==tile.sublabel) sub=sub.slice(0,-1)+'…';
-      ctx.fillText(sub, tile.x+tile.w/2, tile.y+tile.h-8);
+      ctx.fillText(sub,tile.x+tile.w/2,tile.y+tile.h-10);
       ctx.restore();
+    }
+
+    // Accent line at bottom on hover
+    if(hov&&!isBack){
+      ctx.save();
+      ctx.fillStyle=tile.color;
+      ctx.shadowColor=tile.color; ctx.shadowBlur=8;
+      ctx.beginPath();
+      ctx.roundRect(tile.x+tile.w*.2,tile.y+tile.h-4,tile.w*.6,3,2);
+      ctx.fill(); ctx.restore();
     }
 
     // Dwell ring
     if(hov&&state.dwellProgress>0){
-      const rx=tile.x+tile.w-24, ry=tile.y+24, rr2=15;
+      const rx=tile.x+tile.w-26,ry=tile.y+26,rr2=17;
       ctx.save();
-      ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=4;
+      ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=4;
       ctx.beginPath(); ctx.arc(rx,ry,rr2,0,Math.PI*2); ctx.stroke();
-      ctx.strokeStyle='#4fffb0'; ctx.lineWidth=4; ctx.lineCap='round';
-      ctx.shadowColor='#4fffb0'; ctx.shadowBlur=8;
+      ctx.strokeStyle=tile.id==='back'?'#ff6584':'#00e5a0';
+      ctx.lineWidth=4; ctx.lineCap='round';
+      ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=10;
       ctx.beginPath(); ctx.arc(rx,ry,rr2,-Math.PI/2,-Math.PI/2+Math.PI*2*state.dwellProgress); ctx.stroke();
       ctx.restore();
     }
   }
 
-  // Scroll zone glow
+  // Scroll zone fade
   if(isScrollable()){
-    const cy2=state.sy*H, zone=H*CFG.scrollZone;
+    const cy2=state.sy*H,zone=H*CFG.scrollZone;
     if(cy2<zone&&state.scrollY>0){
-      ctx.save(); ctx.globalAlpha=.1; ctx.fillStyle='#7c6aff';
-      ctx.fillRect(0,0,W,zone); ctx.restore();
+      ctx.save(); ctx.globalAlpha=.12; ctx.fillStyle='#6c63ff'; ctx.fillRect(0,0,W,zone); ctx.restore();
     }
     if(cy2>H-zone&&state.scrollY<maxScroll()){
-      ctx.save(); ctx.globalAlpha=.1; ctx.fillStyle='#7c6aff';
-      ctx.fillRect(0,H-zone,W,zone); ctx.restore();
+      ctx.save(); ctx.globalAlpha=.12; ctx.fillStyle='#6c63ff'; ctx.fillRect(0,H-zone,W,zone); ctx.restore();
     }
   }
 
-  // Cursor
-  const cx2=state.sx*W, cy2=state.sy*H, R=CFG.cursorRadius;
+  // CURSOR
+  const cx2=state.sx*W,cy2=state.sy*H,R=CFG.cursorRadius;
   if(state.handVisible){
     ctx.save();
-    ctx.shadowColor='#7c6aff'; ctx.shadowBlur=32;
+    ctx.shadowColor='#6c63ff'; ctx.shadowBlur=40;
     ctx.beginPath(); ctx.arc(cx2,cy2,R,0,Math.PI*2);
-    ctx.strokeStyle='rgba(124,106,255,.6)'; ctx.lineWidth=3; ctx.stroke();
+    ctx.strokeStyle='rgba(108,99,255,.7)'; ctx.lineWidth=3; ctx.stroke();
     const cg=ctx.createRadialGradient(cx2-R*.3,cy2-R*.3,0,cx2,cy2,R);
-    cg.addColorStop(0,'rgba(160,140,255,.85)'); cg.addColorStop(1,'rgba(100,80,220,.4)');
+    cg.addColorStop(0,'rgba(180,160,255,.9)');
+    cg.addColorStop(1,'rgba(108,99,255,.35)');
     ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(cx2,cy2,R*.6,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx2,cy2,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(cx2,cy2,5,0,Math.PI*2); ctx.fill();
     ctx.restore();
   } else {
-    ctx.save(); ctx.strokeStyle='rgba(124,106,255,.18)'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+    ctx.save(); ctx.strokeStyle='rgba(108,99,255,.22)'; ctx.lineWidth=2; ctx.setLineDash([6,6]);
     ctx.beginPath(); ctx.arc(cx2,cy2,R,0,Math.PI*2); ctx.stroke(); ctx.restore();
-    ctx.save(); ctx.fillStyle='rgba(120,112,170,.42)';
-    ctx.font='500 16px Segoe UI,system-ui,sans-serif';
+    ctx.save(); ctx.fillStyle='rgba(208,204,255,.5)';
+    ctx.font='500 17px Segoe UI,system-ui,sans-serif';
     ctx.textAlign='center'; ctx.textBaseline='bottom';
-    ctx.fillText('✋ Show your right hand to the camera',W/2,H-12);
+    ctx.fillText('✋ Show your right hand to the camera',W/2,H-14);
     ctx.restore();
   }
 
-  // Camera preview
+  // Camera preview PiP
   if(CFG.previewOn&&camVideo.readyState>=2){
     prevCtx.save(); prevCtx.scale(-1,1);
     prevCtx.drawImage(camVideo,-160,0,160,120);
@@ -534,34 +575,39 @@ function render(ts) {
   }
 
   updateScroll();
-  updateDwell(ts, tiles);
+  updateDwell(ts,tiles);
   requestAnimationFrame(render);
 }
 
 function drawArrow(x,y,dir){
-  ctx.save(); ctx.fillStyle='rgba(124,106,255,.5)';
+  ctx.save(); ctx.fillStyle='rgba(108,99,255,.6)';
+  ctx.shadowColor='#6c63ff'; ctx.shadowBlur=8;
   ctx.beginPath();
-  if(dir==='up'){ctx.moveTo(x,y-10);ctx.lineTo(x+18,y+8);ctx.lineTo(x-18,y+8);}
-  else{ctx.moveTo(x,y+10);ctx.lineTo(x+18,y-8);ctx.lineTo(x-18,y-8);}
+  if(dir==='up'){ctx.moveTo(x,y-12);ctx.lineTo(x+20,y+8);ctx.lineTo(x-20,y+8);}
+  else{ctx.moveTo(x,y+12);ctx.lineTo(x+20,y-8);ctx.lineTo(x-20,y-8);}
   ctx.closePath(); ctx.fill(); ctx.restore();
 }
 
-// ── SCROLL ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  SCROLL
+// ═══════════════════════════════════════════════════════════
 function updateScroll(){
   if(!isScrollable()) return;
-  const H=canvas.height, cy2=state.sy*H, zone=H*CFG.scrollZone;
+  const H=canvas.height,cy2=state.sy*H,zone=H*CFG.scrollZone;
   if(cy2<zone&&state.handVisible) state.scrollTarget=Math.max(0,state.scrollTarget-CFG.scrollSpeed);
   else if(cy2>H-zone&&state.handVisible) state.scrollTarget=Math.min(maxScroll(),state.scrollTarget+CFG.scrollSpeed);
   state.scrollY+=(state.scrollTarget-state.scrollY)*.12;
   if(Math.abs(state.scrollTarget-state.scrollY)<.5) state.scrollY=state.scrollTarget;
 }
 
-// ── DWELL ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  DWELL
+// ═══════════════════════════════════════════════════════════
 function updateDwell(ts,tiles){
-  const W=canvas.width, H=canvas.height, curX=state.sx*W, curY=state.sy*H;
+  const W=canvas.width,H=canvas.height,curX=state.sx*W,curY=state.sy*H;
   const zone=H*CFG.scrollZone;
   if(isScrollable()&&(curY<zone||curY>H-zone)){
-    state.hoveredTile=null; state.dwellStart=null; state.dwellProgress=0; return;
+    state.hoveredTile=null;state.dwellStart=null;state.dwellProgress=0;return;
   }
   let hit=null;
   for(const t of tiles){
@@ -574,54 +620,53 @@ function updateDwell(ts,tiles){
       state.dwellProgress=Math.min((ts-state.dwellStart)/CFG.dwellMs,1);
       if(state.dwellProgress>=1){selectTile(hit);state.dwellStart=ts+1000;state.dwellProgress=0;}
     }
-  } else {state.hoveredTile=null;state.dwellStart=null;state.dwellProgress=0;}
+  }else{state.hoveredTile=null;state.dwellStart=null;state.dwellProgress=0;}
 }
 
-// ── SELECT ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  SELECT
+// ═══════════════════════════════════════════════════════════
 function selectTile(tile){
-  soundFlash.style.background=tile.color+'22'; soundFlash.style.opacity='1';
+  soundFlash.style.background=tile.color+'20'; soundFlash.style.opacity='1';
   setTimeout(()=>soundFlash.style.opacity='0',200);
-
-  if(tile.action==='back')   { goTo('menu'); return; }
-  if(tile.action==='nav')    { goTo(tile.target); return; }
-  if(tile.action==='video')  { playVideo(tile.src, tile.sublabel||'Video'); return; }
-  if(tile.action==='music')  { flashMsg(`🎵 ${tile.inst} — coming soon!`); return; }
-  if(tile.action==='game')   { flashMsg(`🎮 ${tile.game} — coming soon!`); return; }
-  if(tile.action==='placeholder') { flashMsg('Coming soon!'); return; }
-  if(tile.action==='dwell+') { CFG.dwellMs=Math.min(4000,CFG.dwellMs+250); return; }
-  if(tile.action==='dwell-') { CFG.dwellMs=Math.max(500,CFG.dwellMs-250); return; }
-  if(tile.action==='sens+')  { CFG.sensitivity=Math.min(4,+(CFG.sensitivity+.2).toFixed(1)); return; }
-  if(tile.action==='sens-')  { CFG.sensitivity=Math.max(.5,+(CFG.sensitivity-.2).toFixed(1)); return; }
-  if(tile.action==='mic')    { toggleMic(); return; }
-  if(tile.action==='preview'){ togglePreview(); return; }
+  if(tile.action==='back')       {goTo('menu');return;}
+  if(tile.action==='nav')        {goTo(tile.target);return;}
+  if(tile.action==='video')      {playVideo(tile.src,tile.sublabel||'Video');return;}
+  if(tile.action==='ballz')      {startBallz();return;}
+  if(tile.action==='comingsoon') {flashMsg('Coming soon! 🚀');return;}
+  if(tile.action==='dwell+')     {CFG.dwellMs=Math.min(4000,CFG.dwellMs+250);return;}
+  if(tile.action==='dwell-')     {CFG.dwellMs=Math.max(500,CFG.dwellMs-250);return;}
+  if(tile.action==='sens+')      {CFG.sensitivity=Math.min(4,+(CFG.sensitivity+.2).toFixed(1));return;}
+  if(tile.action==='sens-')      {CFG.sensitivity=Math.max(.5,+(CFG.sensitivity-.2).toFixed(1));return;}
+  if(tile.action==='mic')        {toggleMic();return;}
+  if(tile.action==='preview')    {togglePreview();return;}
 }
 
 function goTo(screen){
-  state.screen=screen;
-  state.scrollY=0; state.scrollTarget=0;
+  state.screen=screen; state.scrollY=0; state.scrollTarget=0;
   state.hoveredTile=null; state.dwellStart=null; state.dwellProgress=0;
 }
 
-// ── VIDEO PLAYER ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  VIDEO PLAYER  (audio fix: no muted attr, user gesture = tap)
+// ═══════════════════════════════════════════════════════════
 function playVideo(src,name){
   if(!src){flashMsg(`No file for "${name}" yet`);return;}
   fullVideo.pause(); fullVideo.removeAttribute('src'); fullVideo.load();
   fullVideo.src=src;
   videoOverlay.classList.add('show');
-
-  // Show loading progress
   videoLoadingEl.classList.add('show');
   videoLoadingMsg.classList.add('show');
   videoLoadingBar.style.width='0%';
   videoLoadingMsg.textContent='Loading video…';
 
-  fullVideo.addEventListener('progress', onVideoProgress);
-  fullVideo.addEventListener('canplay', onVideoCanPlay, {once:true});
-  fullVideo.addEventListener('waiting', ()=>{
+  fullVideo.addEventListener('progress',onVideoProgress);
+  fullVideo.addEventListener('canplay',onVideoCanPlay,{once:true});
+  fullVideo.addEventListener('waiting',()=>{
     videoLoadingEl.classList.add('show');
     videoLoadingMsg.textContent='Buffering…';
   });
-  fullVideo.addEventListener('playing', ()=>{
+  fullVideo.addEventListener('playing',()=>{
     videoLoadingEl.classList.remove('show');
     videoLoadingMsg.classList.remove('show');
   });
@@ -631,18 +676,18 @@ function playVideo(src,name){
   else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
 }
 
-function onVideoProgress() {
+function onVideoProgress(){
   if(!fullVideo.duration) return;
-  try {
+  try{
     const buf=fullVideo.buffered;
     if(buf.length>0){
       const pct=Math.round((buf.end(buf.length-1)/fullVideo.duration)*100);
       videoLoadingBar.style.width=pct+'%';
     }
-  } catch(e){}
+  }catch(e){}
 }
 
-function onVideoCanPlay() {
+function onVideoCanPlay(){
   videoLoadingMsg.textContent='Starting…';
   fullVideo.play().then(()=>{
     videoLoadingEl.classList.remove('show');
@@ -662,10 +707,300 @@ function closeVideoPlayer(){
 fullVideo.addEventListener('ended',closeVideoPlayer);
 closeVideoBtn.addEventListener('click',closeVideoPlayer);
 
-// ── MEDIAPIPE ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  BALLZ! GAME
+// ═══════════════════════════════════════════════════════════
+const BC = ballzCanvas;
+const bctx = BC.getContext('2d');
+let ballzRunning = false;
+let ballzRaf = null;
+let ballzHands = null; // Separate MP instance for Ballz
+
+// Body silhouette: list of landmark positions (updated each frame)
+let bodyPoints = []; // [{x,y}] in canvas coords — both hands + pose estimate
+let prevBodyPoints = [];
+let bodyVelocity = {x:0,y:0}; // estimated body motion
+
+const BALL_COLORS = ['#ff6584','#ffd166','#06d6a0','#4ecdc4','#6c63ff','#ff9f43','#a29bfe'];
+
+class Ball {
+  constructor(W,H){
+    this.r = 36 + Math.random()*24;
+    this.x = this.r + Math.random()*(W-this.r*2);
+    this.y = -this.r;
+    this.vx = (Math.random()-0.5)*4;
+    this.vy = 2 + Math.random()*2;
+    this.color = BALL_COLORS[Math.floor(Math.random()*BALL_COLORS.length)];
+    this.trail = [];
+  }
+
+  update(W,H,bodySegs){
+    // Save trail
+    this.trail.push({x:this.x,y:this.y});
+    if(this.trail.length>8) this.trail.shift();
+
+    // Gravity
+    this.vy += 0.35;
+
+    // Max speed cap
+    const spd = Math.sqrt(this.vx**2+this.vy**2);
+    if(spd>18){this.vx*=18/spd;this.vy*=18/spd;}
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Wall bounces
+    if(this.x-this.r<0){this.x=this.r;this.vx=Math.abs(this.vx)*0.85;}
+    if(this.x+this.r>W){this.x=W-this.r;this.vx=-Math.abs(this.vx)*0.85;}
+    if(this.y+this.r>H){this.y=H-this.r;this.vy=-Math.abs(this.vy)*0.8;this.vx*=0.9;}
+
+    // Body collision
+    for(const seg of bodySegs){
+      this._collideSeg(seg);
+    }
+  }
+
+  _collideSeg(seg){
+    // seg = {x1,y1,x2,y2,vx,vy} — a body segment with velocity
+    // Find closest point on segment to ball center
+    const dx=seg.x2-seg.x1, dy=seg.y2-seg.y1;
+    const len2=dx*dx+dy*dy;
+    if(len2===0) return;
+    let t=((this.x-seg.x1)*dx+(this.y-seg.y1)*dy)/len2;
+    t=Math.max(0,Math.min(1,t));
+    const cx=seg.x1+t*dx, cy=seg.y1+t*dy;
+    const ex=this.x-cx, ey=this.y-cy;
+    const dist=Math.sqrt(ex*ex+ey*ey);
+    const threshold=this.r+18; // body thickness
+    if(dist<threshold&&dist>0){
+      // Push ball out
+      const nx=ex/dist, ny=ey/dist;
+      this.x=cx+nx*threshold;
+      this.y=cy+ny*threshold;
+      // Reflect velocity
+      const dot=this.vx*nx+this.vy*ny;
+      this.vx -= 2*dot*nx;
+      this.vy -= 2*dot*ny;
+      // Add body velocity (kick effect)
+      this.vx += seg.vx*1.2;
+      this.vy += seg.vy*1.2;
+      // Dampen
+      this.vx*=0.9; this.vy*=0.9;
+    }
+  }
+
+  draw(ctx){
+    // Trail
+    for(let i=0;i<this.trail.length;i++){
+      const alpha=(i/this.trail.length)*0.25;
+      ctx.save();
+      ctx.globalAlpha=alpha;
+      ctx.fillStyle=this.color;
+      ctx.beginPath();
+      ctx.arc(this.trail[i].x,this.trail[i].y,this.r*(i/this.trail.length)*.7,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Shadow
+    ctx.save();
+    ctx.shadowColor=this.color; ctx.shadowBlur=20;
+    // Gradient ball
+    const g=ctx.createRadialGradient(this.x-this.r*.3,this.y-this.r*.3,this.r*.1,this.x,this.y,this.r);
+    g.addColorStop(0,'#fff');
+    g.addColorStop(0.3,this.color);
+    g.addColorStop(1,this.color+'88');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+let balls=[];
+let ballSpawnTimer=0;
+const MAX_BALLS=3;
+
+async function startBallz(){
+  dbgOk('Starting Ballz!');
+  ballzOverlay.classList.add('show');
+
+  BC.width=window.innerWidth;
+  BC.height=window.innerHeight;
+
+  // Reuse camera stream
+  if(state.camStream){
+    ballzCam.srcObject=state.camStream;
+    ballzCam.play().catch(()=>{});
+  }
+
+  balls=[];
+  ballSpawnTimer=0;
+  ballzRunning=true;
+
+  // Init separate MP hands for body tracking
+  if(!ballzHands){
+    ballzHands=new Hands({locateFile:f=>`https://unpkg.com/@mediapipe/hands@0.4.1646424915/${f}`});
+    ballzHands.setOptions({maxNumHands:2,modelComplexity:0,minDetectionConfidence:.5,minTrackingConfidence:.4});
+    ballzHands.onResults(onBallzHandResults);
+    await ballzHands.initialize().catch(()=>{});
+  }
+
+  // Feed frames to ballzHands
+  let frameCount=0;
+  async function ballzHandLoop(){
+    if(!ballzRunning) return;
+    frameCount++;
+    // Process every other frame for performance
+    if(frameCount%2===0 && ballzCam.readyState>=2 && ballzHands){
+      await ballzHands.send({image:ballzCam}).catch(()=>{});
+    }
+    requestAnimationFrame(ballzHandLoop);
+  }
+  ballzHandLoop();
+
+  ballzLoop();
+}
+
+function onBallzHandResults(results){
+  prevBodyPoints=[...bodyPoints];
+  bodyPoints=[];
+  if(results.multiHandLandmarks){
+    for(const lm of results.multiHandLandmarks){
+      // Use all landmarks for rich body collision
+      for(const pt of lm){
+        // MP coords are 0-1, map to canvas — mirror X for selfie
+        bodyPoints.push({
+          x:(1-pt.x)*BC.width,
+          y:pt.y*BC.height,
+        });
+      }
+    }
+  }
+  // Estimate body velocity from centroid movement
+  if(bodyPoints.length>0&&prevBodyPoints.length>0){
+    const cx=bodyPoints.reduce((s,p)=>s+p.x,0)/bodyPoints.length;
+    const cy=bodyPoints.reduce((s,p)=>s+p.y,0)/bodyPoints.length;
+    const px=prevBodyPoints.reduce((s,p)=>s+p.x,0)/prevBodyPoints.length;
+    const py=prevBodyPoints.reduce((s,p)=>s+p.y,0)/prevBodyPoints.length;
+    bodyVelocity={x:(cx-px)*0.6+bodyVelocity.x*0.4, y:(cy-py)*0.6+bodyVelocity.y*0.4};
+  } else {
+    bodyVelocity={x:0,y:0};
+  }
+}
+
+function buildBodySegments(){
+  // Build line segments from hand landmarks for collision
+  const segs=[];
+  const lmPerHand=21;
+  const connections=[
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [0,9],[9,10],[10,11],[11,12],
+    [0,13],[13,14],[14,15],[15,16],
+    [0,17],[17,18],[18,19],[19,20],
+    [5,9],[9,13],[13,17],
+  ];
+  // Handle up to 2 hands
+  for(let h=0;h<2;h++){
+    const base=h*lmPerHand;
+    if(base+lmPerHand>bodyPoints.length) break;
+    const pts=bodyPoints.slice(base,base+lmPerHand);
+    for(const [a,b] of connections){
+      segs.push({
+        x1:pts[a].x,y1:pts[a].y,
+        x2:pts[b].x,y2:pts[b].y,
+        vx:bodyVelocity.x,vy:bodyVelocity.y,
+      });
+    }
+  }
+  return segs;
+}
+
+function ballzLoop(){
+  if(!ballzRunning) return;
+  const W=BC.width, H=BC.height;
+
+  // Clear
+  bctx.clearRect(0,0,W,H);
+
+  // Slight dark overlay over camera feed for readability
+  bctx.fillStyle='rgba(0,0,0,0.12)';
+  bctx.fillRect(0,0,W,H);
+
+  // Spawn balls
+  ballSpawnTimer++;
+  if(balls.length<MAX_BALLS && ballSpawnTimer>120){
+    balls.push(new Ball(W,H));
+    ballSpawnTimer=0;
+  }
+
+  const segs=buildBodySegments();
+
+  // Draw body skeleton (glowing lines)
+  if(segs.length>0){
+    bctx.save();
+    bctx.strokeStyle='rgba(0,229,160,.35)';
+    bctx.lineWidth=8; bctx.lineCap='round';
+    bctx.shadowColor='#00e5a0'; bctx.shadowBlur=12;
+    for(const seg of segs){
+      bctx.beginPath(); bctx.moveTo(seg.x1,seg.y1); bctx.lineTo(seg.x2,seg.y2); bctx.stroke();
+    }
+    bctx.restore();
+
+    // Draw hand points
+    bctx.save();
+    bctx.fillStyle='rgba(0,229,160,.6)';
+    bctx.shadowColor='#00e5a0'; bctx.shadowBlur=8;
+    for(const pt of bodyPoints){
+      bctx.beginPath(); bctx.arc(pt.x,pt.y,5,0,Math.PI*2); bctx.fill();
+    }
+    bctx.restore();
+  }
+
+  // Update + draw balls
+  for(const ball of balls){
+    ball.update(W,H,segs);
+    ball.draw(bctx);
+  }
+
+  // Remove balls that have been on screen too long or gone off bottom
+  balls=balls.filter(b=>b.y<H+b.r*2);
+
+  // No hand hint
+  if(bodyPoints.length===0){
+    bctx.save();
+    bctx.fillStyle='rgba(255,255,255,.5)';
+    bctx.font='600 20px Segoe UI,system-ui,sans-serif';
+    bctx.textAlign='center'; bctx.textBaseline='bottom';
+    bctx.fillText('✋ Show your hands to play!',W/2,H-20);
+    bctx.restore();
+  }
+
+  ballzRaf=requestAnimationFrame(ballzLoop);
+}
+
+function stopBallz(){
+  ballzRunning=false;
+  if(ballzRaf) cancelAnimationFrame(ballzRaf);
+  balls=[];
+  bodyPoints=[];
+  ballzOverlay.classList.remove('show');
+}
+
+ballzClose.addEventListener('click',stopBallz);
+
+// Resize Ballz canvas on orientation change
+window.addEventListener('resize',()=>{
+  if(ballzRunning){ BC.width=window.innerWidth; BC.height=window.innerHeight; }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  MEDIAPIPE (main UI)
+// ═══════════════════════════════════════════════════════════
 let mpHands=null;
+
 async function initHandTracking(){
-  loadMsg.textContent='Loading hand tracker…'; dbg('Loading MediaPipe…');
+  loadMsg.textContent='Loading hand tracker…';
+  dbg('Loading MediaPipe…');
   mpHands=new Hands({locateFile:f=>`https://unpkg.com/@mediapipe/hands@0.4.1646424915/${f}`});
   mpHands.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:.6,minTrackingConfidence:.5});
   mpHands.onResults(onHandResults);
@@ -677,14 +1012,14 @@ async function initHandTracking(){
 function onHandResults(results){
   if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
     const lm=results.multiHandLandmarks[0];
-    const px=(lm[0].x+lm[9].x)/2, py=(lm[0].y+lm[9].y)/2;
+    const px=(lm[0].x+lm[9].x)/2,py=(lm[0].y+lm[9].y)/2;
     if(!state.handVisible) dbgOk(`Hand (${px.toFixed(2)},${py.toFixed(2)})`);
     state.cx=.5-(px-.5)*CFG.sensitivity;
     state.cy=.5+(py-.5)*CFG.sensitivity;
     state.handVisible=true;
     handDot.className='sdot ok';
     document.getElementById('hand-lbl').textContent='Hand ✓';
-  } else {
+  }else{
     state.handVisible=false;
     handDot.className='sdot warn';
     document.getElementById('hand-lbl').textContent='Hand…';
@@ -700,6 +1035,7 @@ async function startCamera(){
   try{
     const stream=await navigator.mediaDevices.getUserMedia({
       video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+    state.camStream=stream; // Save for Ballz reuse
     camVideo.srcObject=stream;
     await new Promise(res=>camVideo.onloadedmetadata=res);
     camVideo.play(); dbgOk('Camera on');
@@ -710,7 +1046,7 @@ async function startCamera(){
       requestAnimationFrame(frameLoop);
     })();
     loadDiv.classList.add('gone');
-  } catch(e){
+  }catch(e){
     dbgErr('Camera: '+e.name+' – '+e.message);
     loadMsg.textContent='Camera denied – mouse fallback';
     setTimeout(()=>loadDiv.classList.add('gone'),2000);
@@ -729,7 +1065,9 @@ function enableMouseFallback(){
   document.getElementById('hand-lbl').textContent='Mouse';
 }
 
-// ── MIC ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  MIC
+// ═══════════════════════════════════════════════════════════
 async function toggleMic(){
   if(!CFG.micOn){
     try{
@@ -741,7 +1079,7 @@ async function toggleMic(){
       micDot.className='sdot ok'; micBtn.classList.add('on'); micBtn.textContent='🎤 ON';
       startSoundLoop();
     }catch(e){flashMsg('Mic denied');}
-  } else {
+  }else{
     state.micStream?.getTracks().forEach(t=>t.stop());
     state.audioCtx?.close(); state.analyser=null; CFG.micOn=false;
     micDot.className='sdot'; micBtn.classList.remove('on'); micBtn.textContent='🎤 Mic';
@@ -761,7 +1099,7 @@ function startSoundLoop(){
   })();
 }
 function onSound(){
-  soundFlash.style.background='rgba(79,255,176,.15)'; soundFlash.style.opacity='1';
+  soundFlash.style.background='rgba(0,229,160,.12)'; soundFlash.style.opacity='1';
   setTimeout(()=>soundFlash.style.opacity='0',150);
   if(state.hoveredTile){
     const t=getScreenTiles().find(t=>t.id===state.hoveredTile);
@@ -777,11 +1115,13 @@ function togglePreview(){
 
 function flashMsg(msg){
   const el=document.createElement('div');
-  el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(124,106,255,.92);color:#fff;padding:13px 30px;border-radius:40px;font-size:1.1rem;font-weight:700;z-index:300;pointer-events:none;white-space:nowrap;animation:fadeUp .3s ease forwards;';
+  el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(108,99,255,.95);color:#fff;padding:14px 32px;border-radius:40px;font-size:1.1rem;font-weight:700;z-index:300;pointer-events:none;white-space:nowrap;animation:fadeUp .3s ease forwards;box-shadow:0 4px 24px rgba(0,0,0,.5);';
   el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2500);
 }
 
-// ── START ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════════════════
 startBtn.addEventListener('click',async()=>{
   permScreen.style.display='none';
   statusBar.classList.add('show');
