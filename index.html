@@ -191,15 +191,31 @@ async function loadVideoLibrary() {
       id:'vid_'+i,
       name: v.name || v.file.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '),
       src:'videos/'+v.file,
+      thumb: v.thumb ? 'videos/'+v.thumb : null,
       color:COLORS[i%COLORS.length],
     }));
     dbgOk(`${state.videos.length} videos loaded`);
-    state.videos.forEach(v=>generateThumb(v));
+    state.videos.forEach(v => v.thumb ? loadServerThumb(v) : generateThumb(v));
   } catch(e) {
     dbgWarn('videos/index.json not found – using placeholders. '+e.message);
     state.videos=Array.from({length:6},(_,i)=>({
-      id:'vid_'+i, name:`Video ${i+1}`, src:null, color:COLORS[i],
+      id:'vid_'+i, name:`Video ${i+1}`, src:null, thumb:null, color:COLORS[i],
     }));
+  }
+}
+
+async function loadServerThumb(video) {
+  try {
+    const img=new Image(); img.crossOrigin='anonymous';
+    await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=video.thumb+'?t='+Date.now();});
+    const c=document.createElement('canvas'); c.width=320; c.height=180;
+    c.getContext('2d').drawImage(img,0,0,320,180);
+    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.8));
+    state.thumbCache[video.src]=await createImageBitmap(blob);
+    dbgOk('Thumb: '+video.name);
+  } catch(e) {
+    dbgWarn('Server thumb failed, trying browser gen: '+video.name);
+    generateThumb(video);
   }
 }
 
