@@ -708,107 +708,129 @@ fullVideo.addEventListener('ended',closeVideoPlayer);
 closeVideoBtn.addEventListener('click',closeVideoPlayer);
 
 // ═══════════════════════════════════════════════════════════
-//  BALLZ! GAME
+//  BALLZ! GAME  — MediaPipe Pose (full body)
 // ═══════════════════════════════════════════════════════════
 const BC = ballzCanvas;
 const bctx = BC.getContext('2d');
 let ballzRunning = false;
 let ballzRaf = null;
-let ballzHands = null; // Separate MP instance for Ballz
+let ballzPose = null;
 
-// Body silhouette: list of landmark positions (updated each frame)
-let bodyPoints = []; // [{x,y}] in canvas coords — both hands + pose estimate
-let prevBodyPoints = [];
-let bodyVelocity = {x:0,y:0}; // estimated body motion
+// Per-landmark tracked data with velocity
+let posePoints = [];     // [{x,y,vx,vy}] — canvas coords, smoothed
+let prevPosePts = [];    // previous frame for velocity
+let poseDetected = false;
 
 const BALL_COLORS = ['#ff6584','#ffd166','#06d6a0','#4ecdc4','#6c63ff','#ff9f43','#a29bfe'];
 
+// MediaPipe Pose landmark indices (33 total)
+// https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
+const POSE_CONNECTIONS = [
+  // Head
+  [0,1],[1,2],[2,3],[3,7],    // right eye side
+  [0,4],[4,5],[5,6],[6,8],    // left eye side
+  [9,10],                      // mouth
+  // Torso
+  [11,12],                     // shoulders
+  [11,23],[12,24],[23,24],     // torso box
+  // Right arm
+  [11,13],[13,15],
+  [15,17],[15,19],[15,21],     // right hand
+  [17,19],
+  // Left arm
+  [12,14],[14,16],
+  [16,18],[16,20],[16,22],     // left hand
+  [18,20],
+  // Right leg
+  [23,25],[25,27],[27,29],[27,31],[29,31],
+  // Left leg
+  [24,26],[26,28],[28,30],[28,32],[30,32],
+];
+
+// Thicker segments = bigger collision radius
+const THICK_SEGS = new Set([
+  '11,12','11,23','12,24','23,24', // torso
+  '9,10',                           // head/face
+]);
+
 class Ball {
   constructor(W,H){
-    this.r = 36 + Math.random()*24;
-    this.x = this.r + Math.random()*(W-this.r*2);
-    this.y = -this.r;
-    this.vx = (Math.random()-0.5)*4;
-    this.vy = 2 + Math.random()*2;
+    this.r  = 38 + Math.random()*22;
+    this.x  = this.r + Math.random()*(W-this.r*2);
+    this.y  = -this.r;
+    this.vx = (Math.random()-0.5)*5;
+    this.vy = 1.5 + Math.random()*2;
     this.color = BALL_COLORS[Math.floor(Math.random()*BALL_COLORS.length)];
     this.trail = [];
+    this.lastHitTime = 0;
   }
 
-  update(W,H,bodySegs){
-    // Save trail
+  update(W,H,segs){
     this.trail.push({x:this.x,y:this.y});
-    if(this.trail.length>8) this.trail.shift();
+    if(this.trail.length>10) this.trail.shift();
 
-    // Gravity
-    this.vy += 0.35;
+    this.vy += 0.32; // gravity
 
-    // Max speed cap
-    const spd = Math.sqrt(this.vx**2+this.vy**2);
-    if(spd>18){this.vx*=18/spd;this.vy*=18/spd;}
+    const spd=Math.hypot(this.vx,this.vy);
+    if(spd>20){this.vx*=20/spd;this.vy*=20/spd;}
 
-    this.x += this.vx;
-    this.y += this.vy;
+    this.x+=this.vx; this.y+=this.vy;
 
-    // Wall bounces
-    if(this.x-this.r<0){this.x=this.r;this.vx=Math.abs(this.vx)*0.85;}
-    if(this.x+this.r>W){this.x=W-this.r;this.vx=-Math.abs(this.vx)*0.85;}
-    if(this.y+this.r>H){this.y=H-this.r;this.vy=-Math.abs(this.vy)*0.8;this.vx*=0.9;}
+    // Walls
+    if(this.x-this.r<0){this.x=this.r;this.vx=Math.abs(this.vx)*0.82;}
+    if(this.x+this.r>W){this.x=W-this.r;this.vx=-Math.abs(this.vx)*0.82;}
+    if(this.y+this.r>H){this.y=H-this.r;this.vy=-Math.abs(this.vy)*0.75;this.vx*=0.88;}
 
-    // Body collision
-    for(const seg of bodySegs){
-      this._collideSeg(seg);
+    // Body collisions — cooldown prevents tunnelling
+    const now=performance.now();
+    if(now-this.lastHitTime>80){
+      for(const seg of segs){
+        if(this._collideSeg(seg)){this.lastHitTime=now;break;}
+      }
     }
   }
 
   _collideSeg(seg){
-    // seg = {x1,y1,x2,y2,vx,vy} — a body segment with velocity
-    // Find closest point on segment to ball center
-    const dx=seg.x2-seg.x1, dy=seg.y2-seg.y1;
-    const len2=dx*dx+dy*dy;
-    if(len2===0) return;
+    const dx=seg.x2-seg.x1,dy=seg.y2-seg.y1;
+    const len2=dx*dx+dy*dy; if(len2<1) return false;
     let t=((this.x-seg.x1)*dx+(this.y-seg.y1)*dy)/len2;
     t=Math.max(0,Math.min(1,t));
-    const cx=seg.x1+t*dx, cy=seg.y1+t*dy;
-    const ex=this.x-cx, ey=this.y-cy;
-    const dist=Math.sqrt(ex*ex+ey*ey);
-    const threshold=this.r+18; // body thickness
-    if(dist<threshold&&dist>0){
-      // Push ball out
-      const nx=ex/dist, ny=ey/dist;
-      this.x=cx+nx*threshold;
-      this.y=cy+ny*threshold;
-      // Reflect velocity
+    const cx=seg.x1+t*dx,cy=seg.y1+t*dy;
+    const ex=this.x-cx,ey=this.y-cy;
+    const dist=Math.hypot(ex,ey);
+    const threshold=this.r+seg.thickness;
+    if(dist<threshold&&dist>0.5){
+      const nx=ex/dist,ny=ey/dist;
+      // Push out
+      this.x=cx+nx*(threshold+1);
+      this.y=cy+ny*(threshold+1);
+      // Reflect
       const dot=this.vx*nx+this.vy*ny;
-      this.vx -= 2*dot*nx;
-      this.vy -= 2*dot*ny;
-      // Add body velocity (kick effect)
-      this.vx += seg.vx*1.2;
-      this.vy += seg.vy*1.2;
-      // Dampen
-      this.vx*=0.9; this.vy*=0.9;
+      this.vx-=2*dot*nx;
+      this.vy-=2*dot*ny;
+      // Add limb velocity (kick!)
+      this.vx+=seg.vx*1.5;
+      this.vy+=seg.vy*1.5;
+      // Energy
+      this.vx*=0.88; this.vy*=0.88;
+      return true;
     }
+    return false;
   }
 
   draw(ctx){
-    // Trail
     for(let i=0;i<this.trail.length;i++){
-      const alpha=(i/this.trail.length)*0.25;
-      ctx.save();
-      ctx.globalAlpha=alpha;
+      ctx.save(); ctx.globalAlpha=(i/this.trail.length)*0.22;
       ctx.fillStyle=this.color;
-      ctx.beginPath();
-      ctx.arc(this.trail[i].x,this.trail[i].y,this.r*(i/this.trail.length)*.7,0,Math.PI*2);
-      ctx.fill();
-      ctx.restore();
+      ctx.beginPath(); ctx.arc(this.trail[i].x,this.trail[i].y,this.r*(i/this.trail.length)*.65,0,Math.PI*2);
+      ctx.fill(); ctx.restore();
     }
-    // Shadow
     ctx.save();
-    ctx.shadowColor=this.color; ctx.shadowBlur=20;
-    // Gradient ball
-    const g=ctx.createRadialGradient(this.x-this.r*.3,this.y-this.r*.3,this.r*.1,this.x,this.y,this.r);
-    g.addColorStop(0,'#fff');
-    g.addColorStop(0.3,this.color);
-    g.addColorStop(1,this.color+'88');
+    ctx.shadowColor=this.color; ctx.shadowBlur=24;
+    const g=ctx.createRadialGradient(this.x-this.r*.32,this.y-this.r*.32,this.r*.08,this.x,this.y,this.r);
+    g.addColorStop(0,'rgba(255,255,255,.95)');
+    g.addColorStop(0.25,this.color);
+    g.addColorStop(1,this.color+'55');
     ctx.fillStyle=g;
     ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
     ctx.restore();
@@ -819,159 +841,235 @@ let balls=[];
 let ballSpawnTimer=0;
 const MAX_BALLS=3;
 
-async function startBallz(){
-  dbgOk('Starting Ballz!');
-  ballzOverlay.classList.add('show');
-
-  BC.width=window.innerWidth;
-  BC.height=window.innerHeight;
-
-  // Reuse camera stream
-  if(state.camStream){
-    ballzCam.srcObject=state.camStream;
-    ballzCam.play().catch(()=>{});
+// ── Coordinate mapping ──────────────────────────────────────
+// The camera video is CSS object-fit:cover + scaleX(-1)
+// We must map MP normalised [0,1] coords to canvas pixels
+// accounting for the cover crop and mirror.
+function mpToCanvas(nx, ny, W, H){
+  const vidW=ballzCam.videoWidth||640;
+  const vidH=ballzCam.videoHeight||480;
+  const vidAR=vidW/vidH;
+  const canAR=W/H;
+  let scale, offX=0, offY=0;
+  if(canAR>vidAR){
+    // canvas wider — letterbox top/bottom
+    scale=W/vidW;
+    offY=(H-vidH*scale)/2;
+  } else {
+    // canvas taller — pillarbox left/right
+    scale=H/vidH;
+    offX=(W-vidW*scale)/2;
   }
-
-  balls=[];
-  ballSpawnTimer=0;
-  ballzRunning=true;
-
-  // Init separate MP hands for body tracking
-  if(!ballzHands){
-    ballzHands=new Hands({locateFile:f=>`https://unpkg.com/@mediapipe/hands@0.4.1646424915/${f}`});
-    ballzHands.setOptions({maxNumHands:2,modelComplexity:0,minDetectionConfidence:.5,minTrackingConfidence:.4});
-    ballzHands.onResults(onBallzHandResults);
-    await ballzHands.initialize().catch(()=>{});
-  }
-
-  // Feed frames to ballzHands
-  let frameCount=0;
-  async function ballzHandLoop(){
-    if(!ballzRunning) return;
-    frameCount++;
-    // Process every other frame for performance
-    if(frameCount%2===0 && ballzCam.readyState>=2 && ballzHands){
-      await ballzHands.send({image:ballzCam}).catch(()=>{});
-    }
-    requestAnimationFrame(ballzHandLoop);
-  }
-  ballzHandLoop();
-
-  ballzLoop();
+  // Mirror X (selfie cam)
+  const px=(1-nx)*vidW*scale+offX;
+  const py=ny*vidH*scale+offY;
+  return {x:px,y:py};
 }
 
-function onBallzHandResults(results){
-  prevBodyPoints=[...bodyPoints];
-  bodyPoints=[];
-  if(results.multiHandLandmarks){
-    for(const lm of results.multiHandLandmarks){
-      // Use all landmarks for rich body collision
-      for(const pt of lm){
-        // MP coords are 0-1, map to canvas — mirror X for selfie
-        bodyPoints.push({
-          x:(1-pt.x)*BC.width,
-          y:pt.y*BC.height,
-        });
-      }
-    }
-  }
-  // Estimate body velocity from centroid movement
-  if(bodyPoints.length>0&&prevBodyPoints.length>0){
-    const cx=bodyPoints.reduce((s,p)=>s+p.x,0)/bodyPoints.length;
-    const cy=bodyPoints.reduce((s,p)=>s+p.y,0)/bodyPoints.length;
-    const px=prevBodyPoints.reduce((s,p)=>s+p.x,0)/prevBodyPoints.length;
-    const py=prevBodyPoints.reduce((s,p)=>s+p.y,0)/prevBodyPoints.length;
-    bodyVelocity={x:(cx-px)*0.6+bodyVelocity.x*0.4, y:(cy-py)*0.6+bodyVelocity.y*0.4};
+// ── Pose results ─────────────────────────────────────────────
+function onBallzPoseResults(results){
+  prevPosePts=[...posePoints];
+  const W=BC.width,H=BC.height;
+
+  if(results.poseLandmarks&&results.poseLandmarks.length>0){
+    poseDetected=true;
+    posePoints=results.poseLandmarks.map((lm,i)=>{
+      const {x,y}=mpToCanvas(lm.x,lm.y,W,H);
+      // Per-landmark velocity
+      const prev=prevPosePts[i];
+      const vx=prev?(x-prev.x)*0.5+prev.vx*0.5:0;
+      const vy=prev?(y-prev.y)*0.5+prev.vy*0.5:0;
+      return{x,y,vx,vy,vis:lm.visibility||1};
+    });
   } else {
-    bodyVelocity={x:0,y:0};
+    poseDetected=false;
+    posePoints=[];
   }
 }
 
 function buildBodySegments(){
-  // Build line segments from hand landmarks for collision
+  if(posePoints.length<33) return [];
   const segs=[];
-  const lmPerHand=21;
-  const connections=[
-    [0,1],[1,2],[2,3],[3,4],
-    [0,5],[5,6],[6,7],[7,8],
-    [0,9],[9,10],[10,11],[11,12],
-    [0,13],[13,14],[14,15],[15,16],
-    [0,17],[17,18],[18,19],[19,20],
-    [5,9],[9,13],[13,17],
-  ];
-  // Handle up to 2 hands
-  for(let h=0;h<2;h++){
-    const base=h*lmPerHand;
-    if(base+lmPerHand>bodyPoints.length) break;
-    const pts=bodyPoints.slice(base,base+lmPerHand);
-    for(const [a,b] of connections){
-      segs.push({
-        x1:pts[a].x,y1:pts[a].y,
-        x2:pts[b].x,y2:pts[b].y,
-        vx:bodyVelocity.x,vy:bodyVelocity.y,
-      });
-    }
+  for(const [a,b] of POSE_CONNECTIONS){
+    if(a>=posePoints.length||b>=posePoints.length) continue;
+    const pa=posePoints[a],pb=posePoints[b];
+    if((pa.vis||1)<0.3||(pb.vis||1)<0.3) continue; // skip low-confidence
+    const key=`${Math.min(a,b)},${Math.max(a,b)}`;
+    const thickness=THICK_SEGS.has(key)?28:16;
+    // Use average velocity of the two endpoints
+    segs.push({
+      x1:pa.x,y1:pa.y,x2:pb.x,y2:pb.y,
+      vx:(pa.vx+pb.vx)/2,vy:(pa.vy+pb.vy)/2,
+      thickness,
+    });
   }
   return segs;
 }
 
+// ── Start / Stop ─────────────────────────────────────────────
+async function startBallz(){
+  dbgOk('Starting Ballz! (Pose mode)');
+  ballzOverlay.classList.add('show');
+  BC.width=window.innerWidth;
+  BC.height=window.innerHeight;
+
+  if(state.camStream){
+    ballzCam.srcObject=state.camStream;
+    await ballzCam.play().catch(()=>{});
+  }
+
+  balls=[]; ballSpawnTimer=0; posePoints=[]; poseDetected=false;
+  ballzRunning=true;
+
+  // Lazy-load MediaPipe Pose
+  if(!ballzPose){
+    dbgOk('Loading MediaPipe Pose…');
+    // Load Pose script dynamically
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://unpkg.com/@mediapipe/pose@0.5.1675469404/pose.js';
+      s.crossOrigin='anonymous';
+      s.onload=res; s.onerror=rej;
+      document.head.appendChild(s);
+    }).catch(e=>dbgErr('Pose script load: '+e));
+
+    if(typeof Pose==='undefined'){
+      dbgErr('Pose not available, falling back to hands');
+      startBallzHandsFallback(); return;
+    }
+
+    ballzPose=new Pose({
+      locateFile:f=>`https://unpkg.com/@mediapipe/pose@0.5.1675469404/${f}`
+    });
+    ballzPose.setOptions({
+      modelComplexity:0,
+      smoothLandmarks:true,
+      enableSegmentation:false,
+      minDetectionConfidence:0.5,
+      minTrackingConfidence:0.5,
+    });
+    ballzPose.onResults(onBallzPoseResults);
+    await ballzPose.initialize().catch(e=>dbgErr('Pose init: '+e));
+    dbgOk('Pose ready');
+  }
+
+  // Frame loop
+  let fc=0;
+  async function poseLoop(){
+    if(!ballzRunning) return;
+    fc++;
+    if(fc%2===0&&ballzCam.readyState>=2&&ballzPose){
+      await ballzPose.send({image:ballzCam}).catch(()=>{});
+    }
+    requestAnimationFrame(poseLoop);
+  }
+  poseLoop();
+  ballzLoop();
+}
+
+// Fallback if Pose fails — use Hands (original behaviour)
+async function startBallzHandsFallback(){
+  dbgWarn('Using Hands fallback');
+  // reuse main mpHands instance with 2-hand mode
+  if(mpHands){
+    mpHands.setOptions({maxNumHands:2,modelComplexity:0,minDetectionConfidence:.5,minTrackingConfidence:.4});
+    // Monkey-patch results to posePoints
+    const origOnResults=mpHands.onResults.bind(mpHands);
+    mpHands.onResults(results=>{
+      posePoints=[];
+      if(results.multiHandLandmarks){
+        for(const lm of results.multiHandLandmarks){
+          for(const pt of lm){
+            const{x,y}=mpToCanvas(pt.x,pt.y,BC.width,BC.height);
+            posePoints.push({x,y,vx:0,vy:0,vis:1});
+          }
+        }
+      }
+      poseDetected=posePoints.length>0;
+    });
+  }
+  ballzLoop();
+}
+
 function ballzLoop(){
   if(!ballzRunning) return;
-  const W=BC.width, H=BC.height;
+  const W=BC.width,H=BC.height;
 
-  // Clear
   bctx.clearRect(0,0,W,H);
-
-  // Slight dark overlay over camera feed for readability
-  bctx.fillStyle='rgba(0,0,0,0.12)';
+  bctx.fillStyle='rgba(0,0,0,0.10)';
   bctx.fillRect(0,0,W,H);
 
-  // Spawn balls
+  // Spawn
   ballSpawnTimer++;
-  if(balls.length<MAX_BALLS && ballSpawnTimer>120){
+  if(balls.length<MAX_BALLS&&ballSpawnTimer>100){
     balls.push(new Ball(W,H));
     ballSpawnTimer=0;
   }
 
   const segs=buildBodySegments();
 
-  // Draw body skeleton (glowing lines)
+  // Draw skeleton
   if(segs.length>0){
     bctx.save();
-    bctx.strokeStyle='rgba(0,229,160,.35)';
-    bctx.lineWidth=8; bctx.lineCap='round';
-    bctx.shadowColor='#00e5a0'; bctx.shadowBlur=12;
+    bctx.lineCap='round';
     for(const seg of segs){
+      bctx.strokeStyle=`rgba(0,229,160,${seg.thickness>20?'.5':'.35'})`;
+      bctx.lineWidth=seg.thickness*0.7;
+      bctx.shadowColor='#00e5a0'; bctx.shadowBlur=seg.thickness>20?18:8;
       bctx.beginPath(); bctx.moveTo(seg.x1,seg.y1); bctx.lineTo(seg.x2,seg.y2); bctx.stroke();
     }
     bctx.restore();
 
-    // Draw hand points
+    // Joints
     bctx.save();
-    bctx.fillStyle='rgba(0,229,160,.6)';
-    bctx.shadowColor='#00e5a0'; bctx.shadowBlur=8;
-    for(const pt of bodyPoints){
+    bctx.fillStyle='rgba(0,229,160,.7)';
+    bctx.shadowColor='#00e5a0'; bctx.shadowBlur=10;
+    for(const pt of posePoints){
+      if((pt.vis||1)<0.4) continue;
       bctx.beginPath(); bctx.arc(pt.x,pt.y,5,0,Math.PI*2); bctx.fill();
     }
     bctx.restore();
+
+    // Head circle (landmarks 0–10 are face/head — use nose=0 as centre)
+    if(posePoints[0]&&(posePoints[0].vis||1)>0.4){
+      const nose=posePoints[0];
+      // Estimate head radius from shoulder width
+      let headR=40;
+      if(posePoints[11]&&posePoints[12]){
+        headR=Math.hypot(posePoints[12].x-posePoints[11].x,posePoints[12].y-posePoints[11].y)*0.22;
+        headR=Math.max(28,Math.min(70,headR));
+      }
+      bctx.save();
+      bctx.strokeStyle='rgba(0,229,160,.5)'; bctx.lineWidth=headR*0.55;
+      bctx.shadowColor='#00e5a0'; bctx.shadowBlur=18;
+      bctx.beginPath(); bctx.arc(nose.x,nose.y,headR,0,Math.PI*2); bctx.stroke();
+      bctx.restore();
+
+      // Add head as collision circle (fake as 8 radial segments)
+      for(let a=0;a<8;a++){
+        const ang=a*Math.PI/4;
+        const cos=Math.cos(ang),sin=Math.sin(ang);
+        segs.push({
+          x1:nose.x+cos*headR*0.2,y1:nose.y+sin*headR*0.2,
+          x2:nose.x+cos*headR,y2:nose.y+sin*headR,
+          vx:nose.vx,vy:nose.vy,thickness:headR*0.55,
+        });
+      }
+    }
   }
 
-  // Update + draw balls
-  for(const ball of balls){
-    ball.update(W,H,segs);
-    ball.draw(bctx);
-  }
+  // Balls
+  for(const ball of balls) ball.update(W,H,segs);
+  for(const ball of balls) ball.draw(bctx);
+  balls=balls.filter(b=>b.y<H+b.r*3);
 
-  // Remove balls that have been on screen too long or gone off bottom
-  balls=balls.filter(b=>b.y<H+b.r*2);
-
-  // No hand hint
-  if(bodyPoints.length===0){
+  // Hint
+  if(!poseDetected){
     bctx.save();
-    bctx.fillStyle='rgba(255,255,255,.5)';
-    bctx.font='600 20px Segoe UI,system-ui,sans-serif';
-    bctx.textAlign='center'; bctx.textBaseline='bottom';
-    bctx.fillText('✋ Show your hands to play!',W/2,H-20);
+    bctx.fillStyle='rgba(255,255,255,.55)';
+    bctx.font='700 22px Segoe UI,system-ui,sans-serif';
+    bctx.textAlign='center'; bctx.textBaseline='middle';
+    bctx.fillText('Step back so your body is visible!',W/2,H/2);
     bctx.restore();
   }
 
@@ -981,8 +1079,7 @@ function ballzLoop(){
 function stopBallz(){
   ballzRunning=false;
   if(ballzRaf) cancelAnimationFrame(ballzRaf);
-  balls=[];
-  bodyPoints=[];
+  balls=[]; posePoints=[];
   ballzOverlay.classList.remove('show');
 }
 
