@@ -282,7 +282,7 @@ function startVideoOverlay(){
   videoOverlayCanvas.width=window.innerWidth;
   videoOverlayCanvas.height=window.innerHeight;
   let playDwell=0, playDwellStart=null;
-  const PLAY_DWELL_MS=100; // 0.1 seconds
+  const PLAY_DWELL_MS=300; // 0.3 seconds — easier to trigger
 
   function loop(ts){
     if(!videoOverlay.classList.contains('show')){
@@ -897,22 +897,17 @@ function playVideo(src, name){
   startVideoOverlay();
 }
 
-// Tap prompt handler — the most reliable way to start audio on iOS
-tapPrompt.addEventListener('click', ()=>{
-  tapPrompt.style.display = 'none';
-  fullVideo.muted = false;
-  fullVideo.volume = 1.0;
-  fullVideo.play().catch(e=>dbgErr('Tap play failed: '+e.message));
+// Single tap handler on the whole overlay — simplest possible
+videoOverlay.addEventListener('click', ()=>{
+  if(tapPrompt.style.display !== 'none'){
+    tapPrompt.style.display = 'none';
+    fullVideo.muted = false;
+    fullVideo.volume = 1.0;
+    fullVideo.play().catch(e=>vstatErr('Play error: '+e.message));
+  }
 });
-tapPrompt.addEventListener('touchend', e=>{
-  e.preventDefault();
-  tapPrompt.style.display = 'none';
-  fullVideo.muted = false;
-  fullVideo.volume = 1.0;
-  fullVideo.play().catch(e=>dbgErr('Tap play failed: '+e.message));
-}, {passive:false});
 
-function onVideoCanPlay(){}  // unused but kept to avoid reference errors
+function onVideoCanPlay(){}
 function onVideoWaiting(){ videoLoadingEl.classList.add('show'); }
 function onVideoPlaying(){ videoLoadingEl.classList.remove('show'); }
 function onVideoProgress(){}
