@@ -108,14 +108,14 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 /* Debug */
 #debug { position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,.92);
   color:var(--green); font-family:monospace; font-size:12px; padding:7px 11px 7px 11px;
-  z-index:200; height:50vh; overflow-y:auto; display:none; border-top:2px solid #444; }
+  z-index:9999; height:50vh; overflow-y:auto; display:none; border-top:2px solid #444; }
 #debug.show { display:block; }
 #debug-toggle { position:fixed; bottom:7px; right:7px; background:rgba(0,0,0,.7);
   color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
-  font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; }
+  font-size:11px; cursor:pointer; z-index:9999; touch-action:manipulation; }
 #debug-copy { position:fixed; bottom:7px; right:60px; background:rgba(0,0,0,.7);
   color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
-  font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; display:none; }
+  font-size:11px; cursor:pointer; z-index:9999; touch-action:manipulation; display:none; }
 #debug.show ~ #debug-copy { display:block; }
 
 @keyframes fadeUp {
@@ -160,7 +160,9 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
   <button id="close-video">✕</button>
   <canvas id="video-overlay-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:12"></canvas>
   <div id="video-loading"><div id="video-loading-bar"></div></div>
-  <div id="video-loading-msg">Loading video…</div>
+  <div id="video-status" style="position:absolute;bottom:80px;left:0;right:0;
+    text-align:center;color:rgba(255,255,255,.8);font-size:1rem;font-family:monospace;
+    z-index:20;padding:0 20px;word-break:break-all;"></div>
   <!-- iOS tap-to-play prompt — fullscreen, hand hover triggers play -->
   <div id="tap-prompt" style="display:none;position:absolute;inset:0;
     background:rgba(0,0,0,.7);align-items:center;justify-content:center;
@@ -843,46 +845,44 @@ let audioUnlocked = false;
 // Simple approach: show overlay, load video, show big tap button.
 // User taps → play with sound. Works on all browsers including iOS.
 
+function vstat(msg){ const el=document.getElementById('video-status'); if(el) el.textContent=msg; dbgOk(msg); }
+function vstatErr(msg){ const el=document.getElementById('video-status'); if(el){ el.textContent=msg; el.style.color='#ff6584'; } dbgErr(msg); }
+
 function playVideo(src, name){
   if(!src){ flashMsg('No file yet'); return; }
 
-  // Clean up previous
   fullVideo.pause();
   fullVideo.onerror = null;
   fullVideo.oncanplay = null;
 
-  // Show overlay immediately so user sees something
   videoOverlay.classList.add('show');
   tapPrompt.style.display = 'flex';
   tapPrompt.querySelector('div:last-child').textContent = name;
   videoLoadingEl.classList.remove('show');
+  vstat('Loading: '+src);
 
-  // Set src AFTER showing overlay
   fullVideo.muted = false;
   fullVideo.volume = 1.0;
   fullVideo.playsInline = true;
   fullVideo.preload = 'auto';
   fullVideo.src = src;
 
-  // Error handler
   fullVideo.onerror = ()=>{
     const c = fullVideo.error ? fullVideo.error.code : '?';
-    dbgErr('Video error code='+c);
-    tapPrompt.querySelector('div:last-child').textContent = 'Error loading video :(';
+    const m = fullVideo.error ? fullVideo.error.message : '?';
+    vstatErr('Error code='+c+' '+m);
   };
 
-  // Wait for canplay then attempt autoplay — correct order
   fullVideo.oncanplay = ()=>{
     fullVideo.oncanplay = null;
-    dbgOk('canplay fired');
+    vstat('canplay — playing...');
     fullVideo.muted = false;
     fullVideo.volume = 1.0;
     fullVideo.play().then(()=>{
-      dbgOk('Playing with sound');
+      vstat('Playing with sound!');
       tapPrompt.style.display = 'none';
     }).catch(e=>{
-      dbgWarn('Autoplay blocked: '+e.message);
-      // tap prompt stays — user taps/hovers to play
+      vstat('Blocked: '+e.message+' — tap to play');
     });
   };
 
@@ -890,7 +890,7 @@ function playVideo(src, name){
     tapPrompt.style.display = 'none';
     fullVideo.muted = false;
     fullVideo.volume = 1.0;
-    dbgOk('playing muted='+fullVideo.muted+' vol='+fullVideo.volume);
+    vstat('playing muted='+fullVideo.muted+' vol='+fullVideo.volume);
   }, {once:true});
 
   fullVideo.addEventListener('ended', closeVideoPlayer, {once:true});
