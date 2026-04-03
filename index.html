@@ -151,7 +151,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 
 <!-- Video player -->
 <div id="video-overlay">
-  <video id="full-video" playsinline></video>
+  <video id="full-video" playsinline webkit-playsinline></video>
   <button id="close-video">✕</button>
   <canvas id="video-overlay-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:12"></canvas>
   <div id="video-loading"><div id="video-loading-bar"></div></div>
@@ -563,19 +563,25 @@ function render(ts){
 
     // Thumbnail for video tiles
     const vid=state.videos.find(v=>v.id===tile.vidId);
-    if(vid&&state.thumbCache[vid.src]){
-      ctx.save();
-      rr(tile.x,tile.y,tile.w,tile.h,22); ctx.clip();
-      const tb=state.thumbCache[vid.src];
-      const sc=Math.max(tile.w/tb.width,tile.h/tb.height);
-      const dw=tb.width*sc,dh=tb.height*sc;
-      ctx.globalAlpha=0.45;
-      ctx.drawImage(tb,tile.x+(tile.w-dw)/2,tile.y+(tile.h-dh)/2,dw,dh);
-      ctx.globalAlpha=1;
-      const ov=ctx.createLinearGradient(tile.x,tile.y,tile.x,tile.y+tile.h);
-      ov.addColorStop(0,'rgba(13,13,26,.1)'); ov.addColorStop(1,'rgba(13,13,26,.8)');
-      ctx.fillStyle=ov; ctx.fillRect(tile.x,tile.y,tile.w,tile.h);
-      ctx.restore();
+    const tb=vid?state.thumbCache[vid.src]:null;
+    if(tb&&(tb.complete!==false)){
+      try{
+        ctx.save();
+        rr(tile.x,tile.y,tile.w,tile.h,22); ctx.clip();
+        const tw=tb.naturalWidth||tb.width||320;
+        const th=tb.naturalHeight||tb.height||180;
+        if(tw>0&&th>0){
+          const sc=Math.max(tile.w/tw,tile.h/th);
+          const dw=tw*sc,dh=th*sc;
+          ctx.globalAlpha=0.45;
+          ctx.drawImage(tb,tile.x+(tile.w-dw)/2,tile.y+(tile.h-dh)/2,dw,dh);
+          ctx.globalAlpha=1;
+          const ov=ctx.createLinearGradient(tile.x,tile.y,tile.x,tile.y+tile.h);
+          ov.addColorStop(0,'rgba(13,13,26,.1)'); ov.addColorStop(1,'rgba(13,13,26,.8)');
+          ctx.fillStyle=ov; ctx.fillRect(tile.x,tile.y,tile.w,tile.h);
+        }
+        ctx.restore();
+      }catch(e){ /* skip bad frame */ }
     }
 
     // Emoji / icon
@@ -796,17 +802,18 @@ document.addEventListener('mouseup',  ()=>{ audioUnlocked=true; }, {once:true});
 function playVideo(src,name){
   if(!src){flashMsg(`No file for "${name}" yet`);return;}
 
-  // Clean up
   fullVideo.pause();
   fullVideo.removeEventListener('progress',onVideoProgress);
   fullVideo.removeEventListener('canplay',onVideoCanPlay);
   fullVideo.removeEventListener('waiting',onVideoWaiting);
   fullVideo.removeEventListener('playing',onVideoPlaying);
 
-  fullVideo.src=src;
+  // iOS trick: start muted to allow autoplay, unmute immediately after
+  fullVideo.muted=true;
   fullVideo.volume=SECTION_CFG.videos.volume??1.0;
-  fullVideo.muted=false;
+  fullVideo.playsInline=true;
   fullVideo.preload='auto';
+  fullVideo.src=src;
   tapPrompt.style.display='none';
 
   videoOverlay.classList.add('show');
@@ -820,10 +827,7 @@ function playVideo(src,name){
   fullVideo.addEventListener('waiting',onVideoWaiting);
   fullVideo.addEventListener('playing',onVideoPlaying);
 
-  // Don't call fullVideo.load() — setting src triggers it automatically
-  // Fullscreen
   videoOverlay.requestFullscreen?.().catch(()=>{});
-  if(!document.fullscreenElement) videoOverlay.webkitRequestFullscreen?.();
   startVideoOverlay();
 }
 
@@ -837,6 +841,8 @@ function onVideoPlaying(){
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
   tapPrompt.style.display='none';
+  // Unmute now that playback has started — iOS allows this after play begins
+  fullVideo.muted=false;
 }
 
 function onVideoProgress(){
@@ -853,25 +859,31 @@ function onVideoProgress(){
 function onVideoCanPlay(){
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
-  fullVideo.muted=false;
+  // Play muted first — guaranteed to succeed on iOS
+  fullVideo.muted=true;
   fullVideo.play().then(()=>{
+    // Now immediately unmute
+    fullVideo.muted=false;
     tapPrompt.style.display='none';
-  }).catch(()=>{
-    // Autoplay with sound blocked by browser — show tap prompt as fallback
+  }).catch(e=>{
+    dbgErr('Play failed: '+e.message);
+    // Show tap prompt as last resort
     tapPrompt.style.display='flex';
   });
 }
 
-// Tap prompt — direct user gesture on the video element
+// Tap prompt — direct user gesture, unmutes and plays
 tapPrompt.addEventListener('click', ()=>{
   tapPrompt.style.display='none';
+  fullVideo.muted=false;
   fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
 });
 tapPrompt.addEventListener('touchend', (e)=>{
   e.preventDefault();
   tapPrompt.style.display='none';
+  fullVideo.muted=false;
   fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
-}, {passive:false});
+},{passive:false});
 
 function closeVideoPlayer(){
   fullVideo.removeEventListener('progress',onVideoProgress);
