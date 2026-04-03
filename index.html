@@ -847,7 +847,6 @@ function playVideo(src,name){
     }
   },8000);
 
-  videoOverlay.requestFullscreen?.().catch(()=>{});
   startVideoOverlay();
 }
 
@@ -914,18 +913,17 @@ function closeVideoPlayer(){
   fullVideo.removeEventListener('canplay',onVideoCanPlay);
   fullVideo.removeEventListener('waiting',onVideoWaiting);
   fullVideo.removeEventListener('playing',onVideoPlaying);
+  clearTimeout(fullVideo._loadTimeout);
   fullVideo.pause();
   fullVideo.removeAttribute('src');
-  fullVideo.load(); // Reset after removing src
+  fullVideo.load();
   videoOverlay.classList.remove('show');
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
   tapPrompt.style.display='none';
   if(videoOverlayRaf){ cancelAnimationFrame(videoOverlayRaf); videoOverlayRaf=null; }
   vocCtx.clearRect(0,0,videoOverlayCanvas.width,videoOverlayCanvas.height);
-  document.exitFullscreen?.().catch(()=>{});
 }
-fullVideo.addEventListener('ended',closeVideoPlayer);
 closeVideoBtn.addEventListener('click',closeVideoPlayer);
 
 // ═══════════════════════════════════════════════════════════
