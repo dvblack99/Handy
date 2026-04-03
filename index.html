@@ -851,6 +851,10 @@ function vstatErr(msg){ const el=document.getElementById('video-status'); if(el)
 function playVideo(src, name){
   if(!src){ flashMsg('No file yet'); return; }
 
+  // STOP CAMERA — iOS cannot play two video streams at once
+  camVideo.pause();
+  if(state.camStream) state.camStream.getTracks().forEach(t=>t.enabled=false);
+
   fullVideo.pause();
   fullVideo.onerror = null;
   fullVideo.oncanplay = null;
@@ -860,57 +864,47 @@ function playVideo(src, name){
   tapPrompt.style.display = 'flex';
   tapPrompt.querySelector('div:last-child').textContent = name;
   videoLoadingEl.classList.remove('show');
-  vstat('Loading: '+src);
+  vstat('Starting...');
 
-  fullVideo.muted = false;
+  fullVideo.muted = true;
   fullVideo.volume = 1.0;
   fullVideo.playsInline = true;
+  fullVideo.autoplay = true;
   fullVideo.preload = 'auto';
   fullVideo.src = src;
-  fullVideo.load(); // explicit load() needed on iOS
+  fullVideo.load();
 
   fullVideo.onerror = ()=>{
     const c = fullVideo.error ? fullVideo.error.code : '?';
-    const m = fullVideo.error ? fullVideo.error.message : '?';
-    vstatErr('Error code='+c+' '+m);
+    vstatErr('Error code='+c);
   };
 
-  // iOS sometimes fires loadedmetadata but not canplay
   fullVideo.onloadedmetadata = ()=>{
-    vstat('metadata loaded — dur='+fullVideo.duration.toFixed(1)+'s');
+    vstat('Ready — tap for sound');
   };
 
   fullVideo.oncanplay = ()=>{
     fullVideo.oncanplay = null;
-    vstat('canplay — playing...');
-    fullVideo.muted = false;
-    fullVideo.volume = 1.0;
-    fullVideo.play().then(()=>{
-      vstat('Playing with sound!');
-      tapPrompt.style.display = 'none';
-    }).catch(e=>{
-      vstat('Tap to play ('+e.message+')');
-    });
+    vstat('canplay OK');
+    fullVideo.play().catch(e=>vstat('Tap to start'));
   };
 
   fullVideo.addEventListener('playing', ()=>{
-    tapPrompt.style.display = 'none';
-    fullVideo.muted = false;
-    fullVideo.volume = 1.0;
-    vstat('playing muted='+fullVideo.muted+' vol='+fullVideo.volume);
+    vstat('Playing! Tap for sound');
   }, {once:true});
 
   fullVideo.addEventListener('ended', closeVideoPlayer, {once:true});
   startVideoOverlay();
 }
 
-// Single tap handler on the whole overlay — simplest possible
+// Tap anywhere to unmute
 videoOverlay.addEventListener('click', ()=>{
   if(tapPrompt.style.display !== 'none'){
     tapPrompt.style.display = 'none';
     fullVideo.muted = false;
     fullVideo.volume = 1.0;
-    fullVideo.play().catch(e=>vstatErr('Play error: '+e.message));
+    if(fullVideo.paused) fullVideo.play().catch(e=>vstatErr('Play: '+e.message));
+    vstat('Unmuted!');
   }
 });
 
@@ -929,6 +923,9 @@ function closeVideoPlayer(){
   videoLoadingEl.classList.remove('show');
   if(videoOverlayRaf){ cancelAnimationFrame(videoOverlayRaf); videoOverlayRaf=null; }
   vocCtx.clearRect(0,0,videoOverlayCanvas.width,videoOverlayCanvas.height);
+  // RESTART CAMERA
+  if(state.camStream) state.camStream.getTracks().forEach(t=>t.enabled=true);
+  camVideo.play().catch(()=>{});
   dbgOk('Video closed');
 }
 closeVideoBtn.addEventListener('click', closeVideoPlayer);
