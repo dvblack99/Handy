@@ -431,20 +431,20 @@ function playVideo(url) {
   const bar = document.getElementById('video-loading-bar');
   const loadBar = document.getElementById('video-loading');
 
-  // Reset
   vid.pause();
-  vid.src = '';
+  vid.removeAttribute('src');
+  vid.load();
   bar.style.width = '0%';
   loadBar.style.display = 'block';
 
   showScreen('video-player');
 
-  vid.src = url;
-  vid.muted = false;   // Audio on — iOS allows this after our unlockAudio gesture
+  vid.muted = false;
   vid.volume = 1.0;
+  vid.src = url;
 
   vid.onprogress = () => {
-    if (vid.buffered.length) {
+    if (vid.buffered.length && vid.duration) {
       const pct = (vid.buffered.end(0) / vid.duration) * 100;
       bar.style.width = pct + '%';
       if (pct >= 99) loadBar.style.display = 'none';
@@ -452,10 +452,8 @@ function playVideo(url) {
   };
   vid.oncanplay = () => {
     loadBar.style.display = 'none';
-    // Play with audio — this works because camera permission was a prior user gesture
-    const p = vid.play();
-    if (p && p.catch) p.catch(() => {
-      // If still blocked, mute and play (silent fallback)
+    vid.play().catch(() => {
+      // Last resort: play muted if browser still blocks
       vid.muted = true;
       vid.play();
     });
