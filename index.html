@@ -854,6 +854,7 @@ function playVideo(src, name){
   fullVideo.pause();
   fullVideo.onerror = null;
   fullVideo.oncanplay = null;
+  fullVideo.onloadedmetadata = null;
 
   videoOverlay.classList.add('show');
   tapPrompt.style.display = 'flex';
@@ -866,11 +867,17 @@ function playVideo(src, name){
   fullVideo.playsInline = true;
   fullVideo.preload = 'auto';
   fullVideo.src = src;
+  fullVideo.load(); // explicit load() needed on iOS
 
   fullVideo.onerror = ()=>{
     const c = fullVideo.error ? fullVideo.error.code : '?';
     const m = fullVideo.error ? fullVideo.error.message : '?';
     vstatErr('Error code='+c+' '+m);
+  };
+
+  // iOS sometimes fires loadedmetadata but not canplay
+  fullVideo.onloadedmetadata = ()=>{
+    vstat('metadata loaded — dur='+fullVideo.duration.toFixed(1)+'s');
   };
 
   fullVideo.oncanplay = ()=>{
@@ -882,7 +889,7 @@ function playVideo(src, name){
       vstat('Playing with sound!');
       tapPrompt.style.display = 'none';
     }).catch(e=>{
-      vstat('Blocked: '+e.message+' — tap to play');
+      vstat('Tap to play ('+e.message+')');
     });
   };
 
