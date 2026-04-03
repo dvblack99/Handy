@@ -807,15 +807,17 @@ function playVideo(src,name){
   fullVideo.removeEventListener('canplay',onVideoCanPlay);
   fullVideo.removeEventListener('waiting',onVideoWaiting);
   fullVideo.removeEventListener('playing',onVideoPlaying);
+  fullVideo.removeEventListener('ended',closeVideoPlayer);
 
-  // iOS trick: start muted to allow autoplay, unmute immediately after
-  fullVideo.muted=true;
-  fullVideo.volume=SECTION_CFG.videos.volume??1.0;
+  // Set attributes before load()
+  fullVideo.muted=true;          // start muted — required for autoplay
   fullVideo.playsInline=true;
   fullVideo.preload='auto';
+  fullVideo.volume=1.0;
   fullVideo.src=src;
-  tapPrompt.style.display='none';
+  fullVideo.load();              // iOS Safari REQUIRES explicit load() call
 
+  tapPrompt.style.display='none';
   videoOverlay.classList.add('show');
   videoLoadingEl.classList.add('show');
   videoLoadingMsg.classList.add('show');
@@ -826,9 +828,39 @@ function playVideo(src,name){
   fullVideo.addEventListener('canplay',onVideoCanPlay,{once:true});
   fullVideo.addEventListener('waiting',onVideoWaiting);
   fullVideo.addEventListener('playing',onVideoPlaying);
+  fullVideo.addEventListener('ended',closeVideoPlayer,{once:true});
+
+  // Timeout fallback — if canplay never fires after 8s, show tap prompt
+  clearTimeout(fullVideo._loadTimeout);
+  fullVideo._loadTimeout=setTimeout(()=>{
+    if(fullVideo.paused&&videoOverlay.classList.contains('show')){
+      dbgWarn('canplay timeout — showing tap prompt');
+      tapPrompt.style.display='flex';
+      videoLoadingEl.classList.remove('show');
+      videoLoadingMsg.classList.remove('show');
+    }
+  },8000);
 
   videoOverlay.requestFullscreen?.().catch(()=>{});
   startVideoOverlay();
+}
+
+function onVideoCanPlay(){
+  clearTimeout(fullVideo._loadTimeout);
+  videoLoadingEl.classList.remove('show');
+  videoLoadingMsg.classList.remove('show');
+  dbgOk('canplay fired');
+  // Play muted — guaranteed to work
+  fullVideo.muted=true;
+  fullVideo.play().then(()=>{
+    dbgOk('playing muted — unmuting');
+    // Short delay then unmute — iOS needs play to be established first
+    setTimeout(()=>{ fullVideo.muted=false; fullVideo.volume=1.0; },200);
+    tapPrompt.style.display='none';
+  }).catch(e=>{
+    dbgErr('play() failed: '+e.message);
+    tapPrompt.style.display='flex';
+  });
 }
 
 function onVideoWaiting(){
@@ -841,8 +873,8 @@ function onVideoPlaying(){
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
   tapPrompt.style.display='none';
-  // Unmute now that playback has started — iOS allows this after play begins
-  fullVideo.muted=false;
+  // Ensure unmuted when playing
+  setTimeout(()=>{ fullVideo.muted=false; fullVideo.volume=1.0; },100);
 }
 
 function onVideoProgress(){
@@ -854,22 +886,6 @@ function onVideoProgress(){
       videoLoadingBar.style.width=pct+'%';
     }
   }catch(e){}
-}
-
-function onVideoCanPlay(){
-  videoLoadingEl.classList.remove('show');
-  videoLoadingMsg.classList.remove('show');
-  // Play muted first — guaranteed to succeed on iOS
-  fullVideo.muted=true;
-  fullVideo.play().then(()=>{
-    // Now immediately unmute
-    fullVideo.muted=false;
-    tapPrompt.style.display='none';
-  }).catch(e=>{
-    dbgErr('Play failed: '+e.message);
-    // Show tap prompt as last resort
-    tapPrompt.style.display='flex';
-  });
 }
 
 // Tap prompt — direct user gesture, unmutes and plays
