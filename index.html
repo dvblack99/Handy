@@ -68,14 +68,16 @@ color:var(–text2);letter-spacing:.04em;text-transform:uppercase; }
 /* ── BACK / X BUTTON ─────────────────────────────────────── */
 /* Universal X — same on every sub-screen and game */
 .x-btn {
-position:fixed;top:20px;left:20px;z-index:9999;
+position:fixed;top:20px;left:20px;z-index:99999;
 width:clamp(72px,18vw,110px);height:clamp(72px,18vw,110px);
-border-radius:50%;background:rgba(255,255,255,.12);border:3px solid rgba(255,255,255,.3);
+border-radius:50%;background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.5);
 display:flex;align-items:center;justify-content:center;
 font-size:clamp(2rem,7vw,3.5rem);color:#fff;cursor:pointer;
 transition:background .2s;backdrop-filter:blur(6px);
+/* Always above canvas */
+isolation:isolate;
 }
-.x-btn.dwell-active { background:rgba(255,100,132,.5); }
+.x-btn.dwell-active { background:rgba(255,100,132,.6); }
 .dwell-ring {
 position:absolute;inset:-4px;border-radius:50%;
 border:4px solid transparent;border-top-color:var(–accent2);
@@ -102,7 +104,7 @@ transition:width .2s; }
 
 /* ── BALLZ GAME ──────────────────────────────────────────── */
 #ballz-screen { background:transparent;z-index:15; }
-#ballz-canvas { position:fixed;inset:0;width:100%;height:100%;z-index:15; }
+#ballz-canvas { position:fixed;inset:0;width:100%;height:100%;z-index:15;pointer-events:none; }
 
 /* ── DWELL CURSOR ────────────────────────────────────────── */
 #dwell-cursor {
@@ -285,8 +287,11 @@ function triggerXDwell(hovering) {
 //  CAMERA + AUDIO UNLOCK
 // ═══════════════════════════════════════════════════════════
 async function startCamera() {
-  // Unlock audio on this user gesture
+  // ── Unlock audio AND video playback in this synchronous user-gesture frame ──
   unlockAudio();
+  // Pre-warm the player video element with a silent blob so iOS marks it
+  // as "user-gesture activated" — then real src swaps work with audio on.
+  prewarmVideoElement();
 
   try {
     camStream = await navigator.mediaDevices.getUserMedia({
@@ -300,7 +305,6 @@ async function startCamera() {
     showScreen('menu-screen', false);
     navStack.length = 0;
 
-    // Start MediaPipe Pose (used by Ballz game)
     initPose();
 
   } catch(e) {
@@ -311,7 +315,6 @@ async function startCamera() {
 function unlockAudio() {
   if (audioUnlocked) return;
   audioUnlocked = true;
-  // Create and immediately resume/close a silent AudioContext
   try {
     const ac = new (window.AudioContext || window.webkitAudioContext)();
     const buf = ac.createBuffer(1,1,22050);
@@ -320,6 +323,22 @@ function unlockAudio() {
     src.connect(ac.destination);
     src.start(0);
     ac.resume().then(() => ac.close());
+  } catch(e) {}
+}
+
+function prewarmVideoElement() {
+  // Call .play() synchronously inside the gesture — iOS tags this element
+  // as allowed to play with audio for the session lifetime.
+  const vid = document.getElementById('player-vid');
+  try {
+    vid.muted = false;
+    vid.volume = 1.0;
+    // A tiny silent data URI so play() has something to chew on
+    vid.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAAhtZGF0';
+    const p = vid.play();
+    if (p) p.catch(()=>{});
+    // Immediately pause and clear — we just needed the gesture binding
+    setTimeout(() => { vid.pause(); vid.src = ''; vid.load(); }, 100);
   } catch(e) {}
 }
 
