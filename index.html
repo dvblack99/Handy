@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -30,26 +29,26 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 
 /* PERMISSION */
 #permission-screen { position:fixed; inset:0; display:flex; flex-direction:column;
-align-items:center; justify-content:center; gap:28px; background:var(–bg);
-z-index:1000; padding:32px; text-align:center; }
-#permission-screen h1 { font-size:clamp(2.4rem,9vw,5rem); font-weight:900; color:var(–text);
-text-shadow:0 0 40px rgba(108,99,255,.6); }
-#permission-screen p  { font-size:clamp(1.1rem,3.5vw,1.5rem); color:var(–text2); max-width:480px; line-height:1.7; }
+  align-items:center; justify-content:center; gap:28px; background:var(--bg);
+  z-index:1000; padding:32px; text-align:center; }
+#permission-screen h1 { font-size:clamp(2.4rem,9vw,5rem); font-weight:900; color:var(--text);
+  text-shadow:0 0 40px rgba(108,99,255,.6); }
+#permission-screen p  { font-size:clamp(1.1rem,3.5vw,1.5rem); color:var(--text2); max-width:480px; line-height:1.7; }
 #start-btn { font-size:clamp(1.3rem,5vw,2rem); padding:24px 60px; border:none; border-radius:28px;
-background:linear-gradient(135deg,var(–accent),var(–accent2)); color:#fff; cursor:pointer; font-weight:800;
-box-shadow:0 0 50px rgba(108,99,255,.6); touch-action:manipulation; letter-spacing:.02em; }
+  background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; cursor:pointer; font-weight:800;
+  box-shadow:0 0 50px rgba(108,99,255,.6); touch-action:manipulation; letter-spacing:.02em; }
 
 /* STATUS BAR */
 #status-bar { display:none; padding:6px 16px; background:rgba(26,26,46,.95);
-border-bottom:1px solid rgba(255,255,255,.08); font-size:.8rem; color:var(–text2);
-align-items:center; gap:12px; min-height:38px; flex-shrink:0; }
+  border-bottom:1px solid rgba(255,255,255,.08); font-size:.8rem; color:var(--text2);
+  align-items:center; gap:12px; min-height:38px; flex-shrink:0; }
 #status-bar.show { display:flex; }
 .sdot { width:9px; height:9px; border-radius:50%; background:#333; flex-shrink:0; transition:background .3s; }
-.sdot.ok   { background:var(–green); box-shadow:0 0 6px var(–green); }
-.sdot.warn { background:var(–yellow); }
-.sbar-btn { background:none; border:1px solid rgba(255,255,255,.18); color:var(–text2);
-padding:3px 12px; border-radius:20px; cursor:pointer; font-size:.75rem; touch-action:manipulation; }
-.sbar-btn.on { border-color:var(–accent); color:var(–accent); }
+.sdot.ok   { background:var(--green); box-shadow:0 0 6px var(--green); }
+.sdot.warn { background:var(--yellow); }
+.sbar-btn { background:none; border:1px solid rgba(255,255,255,.18); color:var(--text2);
+  padding:3px 12px; border-radius:20px; cursor:pointer; font-size:.75rem; touch-action:manipulation; }
+.sbar-btn.on { border-color:var(--accent); color:var(--accent); }
 #sbar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
 /* MAIN */
@@ -60,38 +59,38 @@ padding:3px 12px; border-radius:20px; cursor:pointer; font-size:.75rem; touch-ac
 
 /* Camera PiP */
 #cam-preview { position:absolute; top:10px; left:10px; width:160px; height:120px;
-border-radius:12px; overflow:hidden; border:2px solid rgba(108,99,255,.6);
-box-shadow:0 4px 24px rgba(0,0,0,.7); z-index:50; display:none; }
+  border-radius:12px; overflow:hidden; border:2px solid rgba(108,99,255,.6);
+  box-shadow:0 4px 24px rgba(0,0,0,.7); z-index:50; display:none; }
 #cam-preview.show { display:block; }
 #preview-canvas { width:100%; height:100%; transform:scaleX(-1); }
 
 #sound-flash { position:absolute; inset:0; pointer-events:none;
-background:rgba(0,229,160,.1); opacity:0; z-index:60; transition:opacity .1s; }
+  background:rgba(0,229,160,.1); opacity:0; z-index:60; transition:opacity .1s; }
 
 /* Loading */
-#loading { position:absolute; inset:0; background:var(–bg); display:flex; flex-direction:column;
-align-items:center; justify-content:center; gap:20px; z-index:90; }
+#loading { position:absolute; inset:0; background:var(--bg); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:20px; z-index:90; }
 #loading.gone { display:none; }
 .spinner { width:52px; height:52px; border:4px solid rgba(108,99,255,.25);
-border-top-color:var(–accent); border-radius:50%; animation:spin 1s linear infinite; }
+  border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
-#load-msg { color:var(–text2); font-size:1rem; font-weight:500; }
+#load-msg { color:var(--text2); font-size:1rem; font-weight:500; }
 
 /* Video overlay */
 #video-overlay { position:fixed; inset:0; background:#000; z-index:500;
-display:none; flex-direction:column; align-items:center; justify-content:center; }
+  display:none; flex-direction:column; align-items:center; justify-content:center; }
 #video-overlay.show { display:flex; }
 #full-video { width:100%; height:100%; object-fit:contain; background:#000; }
 #close-video { position:absolute; top:20px; right:20px; width:56px; height:56px;
-border-radius:50%; background:rgba(0,0,0,.8); border:2px solid rgba(255,255,255,.4);
-color:#fff; font-size:1.4rem; cursor:pointer; display:flex; align-items:center;
-justify-content:center; z-index:10; touch-action:manipulation; font-weight:700; }
+  border-radius:50%; background:rgba(0,0,0,.8); border:2px solid rgba(255,255,255,.4);
+  color:#fff; font-size:1.4rem; cursor:pointer; display:flex; align-items:center;
+  justify-content:center; z-index:10; touch-action:manipulation; font-weight:700; }
 #video-loading { position:absolute; bottom:0; left:0; right:0; height:6px;
-background:rgba(255,255,255,.1); z-index:20; display:none; }
+  background:rgba(255,255,255,.1); z-index:20; display:none; }
 #video-loading.show { display:block; }
-#video-loading-bar { height:100%; background:var(–accent); width:0%; transition:width .3s; border-radius:3px; }
+#video-loading-bar { height:100%; background:var(--accent); width:0%; transition:width .3s; border-radius:3px; }
 #video-loading-msg { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
-color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap; z-index:21; display:none; }
+  color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap; z-index:21; display:none; }
 #video-loading-msg.show { display:block; }
 
 /* Ballz game overlay */
@@ -99,24 +98,23 @@ color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap
 #ballz-overlay.show { display:block; }
 #ballz-canvas { position:absolute; inset:0; width:100%; height:100%; }
 #ballz-cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-transform:scaleX(-1); }
+  transform:scaleX(-1); }
 #ballz-close { display:none; }
 
 /* Debug */
 #debug { position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,.92);
-color:var(–green); font-family:monospace; font-size:12px; padding:7px 11px;
-z-index:200; max-height:150px; overflow-y:auto; display:none; border-top:1px solid #333; }
+  color:var(--green); font-family:monospace; font-size:12px; padding:7px 11px;
+  z-index:200; max-height:150px; overflow-y:auto; display:none; border-top:1px solid #333; }
 #debug.show { display:block; }
 #debug-toggle { position:fixed; bottom:7px; right:7px; background:rgba(0,0,0,.7);
-color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
-font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; }
+  color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
+  font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; }
 
 @keyframes fadeUp {
-from{opacity:0;transform:translateX(-50%) translateY(16px);}
-to{opacity:1;transform:translateX(-50%) translateY(0);}
+  from{opacity:0;transform:translateX(-50%) translateY(16px);}
+  to{opacity:1;transform:translateX(-50%) translateY(0);}
 }
 </style>
-
 </head>
 <body>
 
@@ -148,7 +146,6 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
 </div>
 
 <!-- Video player -->
-
 <div id="video-overlay">
   <video id="full-video" playsinline></video>
   <button id="close-video">✕</button>
@@ -165,7 +162,6 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
 </div>
 
 <!-- Ballz! Game -->
-
 <div id="ballz-overlay">
   <video id="ballz-cam" playsinline autoplay muted></video>
   <canvas id="ballz-canvas"></canvas>
@@ -173,7 +169,6 @@ to{opacity:1;transform:translateX(-50%) translateY(0);}
 </div>
 
 <script src="https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
-
 <script>
 'use strict';
 
@@ -1382,6 +1377,5 @@ micBtn.addEventListener('click',toggleMic);
 previewBtn.addEventListener('click',togglePreview);
 document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();onSound();}});
 </script>
-
 </body>
 </html>
