@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -29,26 +30,26 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 
 /* PERMISSION */
 #permission-screen { position:fixed; inset:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:28px; background:var(--bg);
-  z-index:1000; padding:32px; text-align:center; }
-#permission-screen h1 { font-size:clamp(2.4rem,9vw,5rem); font-weight:900; color:var(--text);
-  text-shadow:0 0 40px rgba(108,99,255,.6); }
-#permission-screen p  { font-size:clamp(1.1rem,3.5vw,1.5rem); color:var(--text2); max-width:480px; line-height:1.7; }
+align-items:center; justify-content:center; gap:28px; background:var(–bg);
+z-index:1000; padding:32px; text-align:center; }
+#permission-screen h1 { font-size:clamp(2.4rem,9vw,5rem); font-weight:900; color:var(–text);
+text-shadow:0 0 40px rgba(108,99,255,.6); }
+#permission-screen p  { font-size:clamp(1.1rem,3.5vw,1.5rem); color:var(–text2); max-width:480px; line-height:1.7; }
 #start-btn { font-size:clamp(1.3rem,5vw,2rem); padding:24px 60px; border:none; border-radius:28px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; cursor:pointer; font-weight:800;
-  box-shadow:0 0 50px rgba(108,99,255,.6); touch-action:manipulation; letter-spacing:.02em; }
+background:linear-gradient(135deg,var(–accent),var(–accent2)); color:#fff; cursor:pointer; font-weight:800;
+box-shadow:0 0 50px rgba(108,99,255,.6); touch-action:manipulation; letter-spacing:.02em; }
 
 /* STATUS BAR */
 #status-bar { display:none; padding:6px 16px; background:rgba(26,26,46,.95);
-  border-bottom:1px solid rgba(255,255,255,.08); font-size:.8rem; color:var(--text2);
-  align-items:center; gap:12px; min-height:38px; flex-shrink:0; }
+border-bottom:1px solid rgba(255,255,255,.08); font-size:.8rem; color:var(–text2);
+align-items:center; gap:12px; min-height:38px; flex-shrink:0; }
 #status-bar.show { display:flex; }
 .sdot { width:9px; height:9px; border-radius:50%; background:#333; flex-shrink:0; transition:background .3s; }
-.sdot.ok   { background:var(--green); box-shadow:0 0 6px var(--green); }
-.sdot.warn { background:var(--yellow); }
-.sbar-btn { background:none; border:1px solid rgba(255,255,255,.18); color:var(--text2);
-  padding:3px 12px; border-radius:20px; cursor:pointer; font-size:.75rem; touch-action:manipulation; }
-.sbar-btn.on { border-color:var(--accent); color:var(--accent); }
+.sdot.ok   { background:var(–green); box-shadow:0 0 6px var(–green); }
+.sdot.warn { background:var(–yellow); }
+.sbar-btn { background:none; border:1px solid rgba(255,255,255,.18); color:var(–text2);
+padding:3px 12px; border-radius:20px; cursor:pointer; font-size:.75rem; touch-action:manipulation; }
+.sbar-btn.on { border-color:var(–accent); color:var(–accent); }
 #sbar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
 /* MAIN */
@@ -59,38 +60,42 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 
 /* Camera PiP */
 #cam-preview { position:absolute; top:10px; left:10px; width:160px; height:120px;
-  border-radius:12px; overflow:hidden; border:2px solid rgba(108,99,255,.6);
-  box-shadow:0 4px 24px rgba(0,0,0,.7); z-index:50; display:none; }
+border-radius:12px; overflow:hidden; border:2px solid rgba(108,99,255,.6);
+box-shadow:0 4px 24px rgba(0,0,0,.7); z-index:50; display:none; }
 #cam-preview.show { display:block; }
 #preview-canvas { width:100%; height:100%; transform:scaleX(-1); }
 
 #sound-flash { position:absolute; inset:0; pointer-events:none;
-  background:rgba(0,229,160,.1); opacity:0; z-index:60; transition:opacity .1s; }
+background:rgba(0,229,160,.1); opacity:0; z-index:60; transition:opacity .1s; }
 
 /* Loading */
-#loading { position:absolute; inset:0; background:var(--bg); display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:20px; z-index:90; }
+#loading { position:absolute; inset:0; background:var(–bg); display:flex; flex-direction:column;
+align-items:center; justify-content:center; gap:20px; z-index:90; }
 #loading.gone { display:none; }
 .spinner { width:52px; height:52px; border:4px solid rgba(108,99,255,.25);
-  border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+border-top-color:var(–accent); border-radius:50%; animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
-#load-msg { color:var(--text2); font-size:1rem; font-weight:500; }
+#load-msg { color:var(–text2); font-size:1rem; font-weight:500; }
 
 /* Video overlay */
 #video-overlay { position:fixed; inset:0; background:#000; z-index:500;
-  display:none; flex-direction:column; align-items:center; justify-content:center; }
+display:none; flex-direction:column; align-items:center; justify-content:center; }
 #video-overlay.show { display:flex; }
 #full-video { width:100%; height:100%; object-fit:contain; background:#000; }
-#close-video { position:absolute; top:20px; right:20px; width:56px; height:56px;
-  border-radius:50%; background:rgba(0,0,0,.8); border:2px solid rgba(255,255,255,.4);
-  color:#fff; font-size:1.4rem; cursor:pointer; display:flex; align-items:center;
-  justify-content:center; z-index:10; touch-action:manipulation; font-weight:700; }
+#close-video { position:absolute; top:16px; right:16px;
+width:min(22vw,120px); height:min(22vw,120px);
+border-radius:18px;
+background:rgba(180,20,50,.88); border:3px solid rgba(255,255,255,.4);
+color:#fff; font-size:min(11vw,60px); font-weight:900; cursor:pointer;
+display:flex; align-items:center; justify-content:center;
+z-index:10; touch-action:manipulation;
+box-shadow:0 4px 24px rgba(0,0,0,.7); }
 #video-loading { position:absolute; bottom:0; left:0; right:0; height:6px;
-  background:rgba(255,255,255,.1); z-index:20; display:none; }
+background:rgba(255,255,255,.1); z-index:20; display:none; }
 #video-loading.show { display:block; }
-#video-loading-bar { height:100%; background:var(--accent); width:0%; transition:width .3s; border-radius:3px; }
+#video-loading-bar { height:100%; background:var(–accent); width:0%; transition:width .3s; border-radius:3px; }
 #video-loading-msg { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
-  color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap; z-index:21; display:none; }
+color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap; z-index:21; display:none; }
 #video-loading-msg.show { display:block; }
 
 /* Ballz game overlay */
@@ -98,23 +103,24 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 #ballz-overlay.show { display:block; }
 #ballz-canvas { position:absolute; inset:0; width:100%; height:100%; }
 #ballz-cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-  transform:scaleX(-1); }
+transform:scaleX(-1); }
 #ballz-close { display:none; }
 
 /* Debug */
 #debug { position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,.92);
-  color:var(--green); font-family:monospace; font-size:12px; padding:7px 11px;
-  z-index:200; max-height:150px; overflow-y:auto; display:none; border-top:1px solid #333; }
+color:var(–green); font-family:monospace; font-size:12px; padding:7px 11px;
+z-index:200; max-height:150px; overflow-y:auto; display:none; border-top:1px solid #333; }
 #debug.show { display:block; }
 #debug-toggle { position:fixed; bottom:7px; right:7px; background:rgba(0,0,0,.7);
-  color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
-  font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; }
+color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
+font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; }
 
 @keyframes fadeUp {
-  from{opacity:0;transform:translateX(-50%) translateY(16px);}
-  to{opacity:1;transform:translateX(-50%) translateY(0);}
+from{opacity:0;transform:translateX(-50%) translateY(16px);}
+to{opacity:1;transform:translateX(-50%) translateY(0);}
 }
 </style>
+
 </head>
 <body>
 
@@ -146,9 +152,11 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 </div>
 
 <!-- Video player -->
+
 <div id="video-overlay">
   <video id="full-video" playsinline></video>
   <button id="close-video">✕</button>
+  <canvas id="video-overlay-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:11"></canvas>
   <div id="video-loading"><div id="video-loading-bar"></div></div>
   <div id="video-loading-msg">Loading video…</div>
   <!-- iOS tap-to-play prompt -->
@@ -162,6 +170,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 </div>
 
 <!-- Ballz! Game -->
+
 <div id="ballz-overlay">
   <video id="ballz-cam" playsinline autoplay muted></video>
   <canvas id="ballz-canvas"></canvas>
@@ -169,6 +178,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 </div>
 
 <script src="https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
+
 <script>
 'use strict';
 
@@ -252,6 +262,58 @@ const fullVideo=document.getElementById('full-video');
 const closeVideoBtn=document.getElementById('close-video');
 const tapPrompt=document.getElementById('tap-prompt');
 const videoLoadingBar=document.getElementById('video-loading-bar');
+const videoOverlayCanvas=document.getElementById('video-overlay-canvas');
+const vocCtx=videoOverlayCanvas.getContext('2d');
+let videoOverlayRaf=null;
+let vocDwell=0, vocDwellStart=null;
+
+function startVideoOverlay(){
+  videoOverlayCanvas.width=window.innerWidth;
+  videoOverlayCanvas.height=window.innerHeight;
+  function loop(ts){
+    if(!videoOverlay.classList.contains('show')){vocDwell=0;vocDwellStart=null;return;}
+    const W=videoOverlayCanvas.width, H=videoOverlayCanvas.height;
+    vocCtx.clearRect(0,0,W,H);
+    const sz=Math.min(W,H)*0.22, pad=16;
+    const bx=W-sz-pad, by=pad;
+    // Check hand position over button
+    const hx=state.sx*W, hy=state.sy*H;
+    const handOver = state.handVisible && hx>=bx && hx<=bx+sz && hy>=by && hy<=by+sz;
+    if(handOver){
+      if(!vocDwellStart) vocDwellStart=ts;
+      vocDwell=Math.min((ts-vocDwellStart)/CFG.dwellMs,1);
+      if(vocDwell>=1){ closeVideoPlayer(); vocDwell=0; vocDwellStart=null; return; }
+    } else {
+      vocDwellStart=null; vocDwell=Math.max(0,vocDwell-0.03);
+    }
+    // Draw X button
+    vocCtx.save();
+    if(handOver){ vocCtx.shadowColor='#ff6584'; vocCtx.shadowBlur=30; }
+    vocCtx.fillStyle=handOver?'#3a0a14':'rgba(180,20,50,.75)';
+    vocCtx.strokeStyle=handOver?'#ff6584':'rgba(255,255,255,.4)';
+    vocCtx.lineWidth=handOver?3:2;
+    vocCtx.beginPath(); vocCtx.roundRect(bx,by,sz,sz,sz*.18); vocCtx.fill(); vocCtx.stroke();
+    vocCtx.fillStyle='#fff';
+    vocCtx.font=`900 ${sz*.52}px Arial,sans-serif`;
+    vocCtx.textAlign='center'; vocCtx.textBaseline='middle';
+    vocCtx.shadowColor='rgba(0,0,0,.5)'; vocCtx.shadowBlur=4;
+    vocCtx.fillText('✕',bx+sz/2,by+sz/2);
+    // Dwell ring
+    if(vocDwell>0){
+      vocCtx.strokeStyle='#ff6584'; vocCtx.lineWidth=5; vocCtx.lineCap='round';
+      vocCtx.shadowColor='#ff6584'; vocCtx.shadowBlur=12;
+      vocCtx.beginPath(); vocCtx.arc(bx+sz/2,by+sz/2,sz/2+6,-Math.PI/2,-Math.PI/2+Math.PI*2*vocDwell); vocCtx.stroke();
+    }
+    vocCtx.restore();
+    videoOverlayRaf=requestAnimationFrame(loop);
+  }
+  videoOverlayRaf=requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize',()=>{
+  videoOverlayCanvas.width=window.innerWidth;
+  videoOverlayCanvas.height=window.innerHeight;
+});
 const videoLoadingEl=document.getElementById('video-loading');
 const videoLoadingMsg=document.getElementById('video-loading-msg');
 const ballzOverlay=document.getElementById('ballz-overlay');
@@ -283,25 +345,22 @@ function getScreenTiles() {
       id:'vid_'+i, label:'', sublabel:v.name, color:TILE_COLORS[i%TILE_COLORS.length],
       action:'video', src:v.src, vidId:v.id,
     }));
-    return layoutGrid([backTile(),...vTiles],W,H,2,true);
+    return layoutGrid([...vTiles],W,H,2,true);
   }
 
   if(state.screen==='music') return layoutGrid([
-    backTile(),
     {id:'music_piano', label:'🎹', sublabel:'Piano',  color:'#6c63ff', action:'comingsoon'},
     {id:'music_guitar',label:'🎸', sublabel:'Guitar', color:'#ff6584', action:'comingsoon'},
     {id:'music_drums', label:'🥁', sublabel:'Drums',  color:'#ff9f43', action:'comingsoon'},
   ],W,H,2,false);
 
   if(state.screen==='games') return layoutGrid([
-    backTile(),
     {id:'game_dressup',  label:'👗', sublabel:'Dress Up',  color:'#ff6584', action:'comingsoon'},
     {id:'game_catapult', label:'🏹', sublabel:'Catapult',  color:'#ff9f43', action:'comingsoon'},
     {id:'game_ballz',    label:'🔵', sublabel:'Ballz!',    color:'#4ecdc4', action:'ballz'},
   ],W,H,2,false);
 
   if(state.screen==='other') return layoutGrid([
-    backTile(),
     {id:'oth_1',label:'1',sublabel:'Option 1',color:'#6c63ff',action:'comingsoon'},
     {id:'oth_2',label:'2',sublabel:'Option 2',color:'#ff6584',action:'comingsoon'},
     {id:'oth_3',label:'3',sublabel:'Option 3',color:'#ff9f43',action:'comingsoon'},
@@ -313,6 +372,20 @@ function getScreenTiles() {
 function backTile(target) {
   return {id:'back',label:'✕',sublabel:'Menu',color:BACK_COLOR,
     action:target?'nav':'back',target:target||'menu'};
+}
+
+// Fixed X button — top-right corner, shown on all non-menu screens
+function getBackButtonTile() {
+  if(state.screen==='menu') return null;
+  const W=canvas.width, H=canvas.height;
+  const sz=Math.min(W,H)*0.22; // ~22% of shortest dimension
+  const pad=16;
+  return {
+    id:'fixed_back', label:'✕', sublabel:null,
+    color:BACK_COLOR, action:'back',
+    x:W-sz-pad, y:pad, w:sz, h:sz,
+    fixed:true,
+  };
 }
 
 function layoutGrid(tiles,W,H,cols,scrollable){
@@ -582,9 +655,41 @@ function render(ts){
     prevCtx.restore();
   }
 
+  // Fixed X back button (all non-menu screens)
+  const backBtn = getBackButtonTile();
+  if(backBtn) drawFixedBackButton(backBtn);
+
   updateScroll();
-  updateDwell(ts,tiles);
+  updateDwell(ts, tiles, backBtn);
   requestAnimationFrame(render);
+}
+
+function drawFixedBackButton(tile){
+  const hov = state.hoveredTile === tile.id;
+  ctx.save();
+  if(hov){ ctx.shadowColor=tile.color; ctx.shadowBlur=36; }
+  // Fill
+  ctx.fillStyle = hov ? '#3a0a14' : 'rgba(180,20,50,.82)';
+  ctx.beginPath(); ctx.roundRect(tile.x,tile.y,tile.w,tile.h,Math.min(tile.w,tile.h)*.2); ctx.fill();
+  // Border
+  ctx.strokeStyle = hov ? '#ff6584' : 'rgba(255,255,255,.35)';
+  ctx.lineWidth = hov ? 3 : 2;
+  ctx.beginPath(); ctx.roundRect(tile.x,tile.y,tile.w,tile.h,Math.min(tile.w,tile.h)*.2); ctx.stroke();
+  // X label
+  const fs = tile.w * 0.52;
+  ctx.font = `900 ${fs}px Arial, sans-serif`;
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=6;
+  ctx.fillText('✕', tile.x+tile.w/2, tile.y+tile.h/2);
+  // Dwell ring
+  if(hov && state.dwellProgress>0){
+    const cx2=tile.x+tile.w/2, cy2=tile.y+tile.h/2, r=tile.w/2+6;
+    ctx.strokeStyle='#ff6584'; ctx.lineWidth=5; ctx.lineCap='round';
+    ctx.shadowColor='#ff6584'; ctx.shadowBlur=12;
+    ctx.beginPath(); ctx.arc(cx2,cy2,r,-Math.PI/2,-Math.PI/2+Math.PI*2*state.dwellProgress); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawArrow(x,y,dir){
@@ -611,17 +716,29 @@ function updateScroll(){
 // ═══════════════════════════════════════════════════════════
 //  DWELL
 // ═══════════════════════════════════════════════════════════
-function updateDwell(ts,tiles){
+function updateDwell(ts,tiles,backBtn){
   const W=canvas.width,H=canvas.height,curX=state.sx*W,curY=state.sy*H;
   const zone=H*CFG.scrollZone;
   if(isScrollable()&&(curY<zone||curY>H-zone)){
     state.hoveredTile=null;state.dwellStart=null;state.dwellProgress=0;return;
   }
+
+  // Check fixed back button first (always on top)
+  const allTiles = backBtn ? [...tiles, backBtn] : tiles;
+
   let hit=null;
-  for(const t of tiles){
-    if(t.y+t.h<0||t.y>H) continue;
-    if(curX>=t.x&&curX<=t.x+t.w&&curY>=t.y&&curY<=t.y+t.h){hit=t;break;}
+  // Always check backBtn first regardless of position
+  if(backBtn){
+    const t=backBtn;
+    if(curX>=t.x&&curX<=t.x+t.w&&curY>=t.y&&curY<=t.y+t.h) hit=t;
   }
+  if(!hit){
+    for(const t of tiles){
+      if(t.y+t.h<0||t.y>H) continue;
+      if(curX>=t.x&&curX<=t.x+t.w&&curY>=t.y&&curY<=t.y+t.h){hit=t;break;}
+    }
+  }
+
   if(hit&&state.handVisible){
     if(state.hoveredTile!==hit.id){state.hoveredTile=hit.id;state.dwellStart=ts;state.dwellProgress=0;}
     else{
@@ -665,11 +782,13 @@ function playVideo(src,name){
   fullVideo.pause(); fullVideo.removeAttribute('src'); fullVideo.load();
   fullVideo.src=src;
   fullVideo.volume = SECTION_CFG.videos.volume ?? 1.0;
+  fullVideo.muted = false;
   videoOverlay.classList.add('show');
   videoLoadingEl.classList.add('show');
   videoLoadingMsg.classList.add('show');
   videoLoadingBar.style.width='0%';
   videoLoadingMsg.textContent='Loading video…';
+  tapPrompt.style.display='none'; // hidden unless autoplay blocked
 
   fullVideo.addEventListener('progress',onVideoProgress);
   fullVideo.addEventListener('canplay',onVideoCanPlay,{once:true});
@@ -684,12 +803,10 @@ function playVideo(src,name){
     tapPrompt.style.display='none';
   });
 
-  // Show tap-to-play prompt — iOS needs a direct tap on video
-  tapPrompt.style.display='flex';
-
   const el=videoOverlay;
   if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
   else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  startVideoOverlay();
 }
 
 function onVideoProgress(){
@@ -706,12 +823,11 @@ function onVideoProgress(){
 function onVideoCanPlay(){
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
-  videoLoadingMsg.textContent='Starting…';
-  // Attempt autoplay — will succeed if audio already unlocked
+  fullVideo.muted=false;
   fullVideo.play().then(()=>{
     tapPrompt.style.display='none';
   }).catch(()=>{
-    // Autoplay blocked — show tap prompt (common on iOS)
+    // Autoplay with sound blocked by browser — show tap prompt as fallback
     tapPrompt.style.display='flex';
   });
 }
@@ -734,6 +850,8 @@ function closeVideoPlayer(){
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
   tapPrompt.style.display='none';
+  if(videoOverlayRaf){ cancelAnimationFrame(videoOverlayRaf); videoOverlayRaf=null; }
+  vocCtx.clearRect(0,0,videoOverlayCanvas.width,videoOverlayCanvas.height);
   if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   else if(document.webkitFullscreenElement) document.webkitExitFullscreen();
 }
@@ -1377,5 +1495,6 @@ micBtn.addEventListener('click',toggleMic);
 previewBtn.addEventListener('click',togglePreview);
 document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();onSound();}});
 </script>
+
 </body>
 </html>
