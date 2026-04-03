@@ -156,13 +156,16 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
   <canvas id="video-overlay-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:12"></canvas>
   <div id="video-loading"><div id="video-loading-bar"></div></div>
   <div id="video-loading-msg">Loading video…</div>
-  <!-- iOS tap-to-play prompt -->
-  <div id="tap-prompt" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);
-    align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:15;cursor:pointer">
-    <div style="font-size:5rem">▶️</div>
-    <div style="color:#fff;font-size:1.4rem;font-weight:700;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.8)">
-      Tap to play with sound
+  <!-- iOS tap-to-play prompt — fullscreen, hand hover triggers play -->
+  <div id="tap-prompt" style="display:none;position:absolute;inset:0;
+    background:rgba(0,0,0,.7);align-items:center;justify-content:center;
+    flex-direction:column;gap:20px;z-index:15;cursor:pointer;touch-action:manipulation">
+    <div style="font-size:6rem">▶️</div>
+    <div style="color:#fff;font-size:1.8rem;font-weight:800;text-align:center;
+      text-shadow:0 2px 12px rgba(0,0,0,.9);padding:0 32px">
+      Tap or hover to play
     </div>
+    <div style="color:rgba(255,255,255,.6);font-size:1rem">with sound</div>
   </div>
 </div>
 
@@ -265,38 +268,68 @@ let vocDwell=0, vocDwellStart=null;
 function startVideoOverlay(){
   videoOverlayCanvas.width=window.innerWidth;
   videoOverlayCanvas.height=window.innerHeight;
+  let playDwell=0, playDwellStart=null;
+  const PLAY_DWELL_MS=100; // 0.1 seconds
+
   function loop(ts){
-    if(!videoOverlay.classList.contains('show')){vocDwell=0;vocDwellStart=null;return;}
+    if(!videoOverlay.classList.contains('show')){
+      vocDwell=0; vocDwellStart=null; playDwell=0; playDwellStart=null; return;
+    }
     const W=videoOverlayCanvas.width, H=videoOverlayCanvas.height;
     vocCtx.clearRect(0,0,W,H);
 
+    const hx=state.sx*W, hy=state.sy*H;
+
+    // ── If tap prompt showing: hand anywhere = play after 0.1s ──
+    const promptVisible = tapPrompt.style.display !== 'none';
+    if(promptVisible && state.handVisible){
+      if(!playDwellStart) playDwellStart=ts;
+      playDwell=Math.min((ts-playDwellStart)/PLAY_DWELL_MS,1);
+      if(playDwell>=1){
+        playDwellStart=null; playDwell=0;
+        tapPrompt.style.display='none';
+        fullVideo.muted=false; fullVideo.volume=1.0;
+        fullVideo.play().then(()=>dbgOk('Hand-triggered play')).catch(e=>dbgErr('Hand play: '+e.message));
+      }
+      // Draw filling circle under cursor as visual feedback
+      vocCtx.save();
+      const pct=playDwell;
+      vocCtx.globalAlpha=0.25+pct*0.35;
+      const gr=vocCtx.createRadialGradient(hx,hy,0,hx,hy,120);
+      gr.addColorStop(0,'#6c63ff'); gr.addColorStop(1,'transparent');
+      vocCtx.fillStyle=gr;
+      vocCtx.beginPath(); vocCtx.arc(hx,hy,120*pct,0,Math.PI*2); vocCtx.fill();
+      vocCtx.restore();
+    } else {
+      playDwellStart=null; playDwell=0;
+    }
+
+    // ── X button (close) ──
     const sz=Math.min(W,H)*0.22, pad=16;
     const bx=W-sz-pad, by=pad;
-    const hx=state.sx*W, hy=state.sy*H;
-    const handOver = state.handVisible && hx>=bx && hx<=bx+sz && hy>=by && hy<=by+sz;
+    const handOverX = state.handVisible && hx>=bx && hx<=bx+sz && hy>=by && hy<=by+sz;
 
-    if(handOver){
+    if(handOverX && !promptVisible){
       if(!vocDwellStart) vocDwellStart=ts;
       vocDwell=Math.min((ts-vocDwellStart)/CFG.dwellMs,1);
       if(vocDwell>=1){ closeVideoPlayer(); vocDwell=0; vocDwellStart=null; return; }
     } else {
-      vocDwellStart=null; vocDwell=Math.max(0,vocDwell-0.03);
+      if(!handOverX){ vocDwellStart=null; vocDwell=Math.max(0,vocDwell-0.03); }
     }
 
-    // ── X button ──
+    // Draw X button
     vocCtx.save();
-    if(handOver){ vocCtx.shadowColor='#ff6584'; vocCtx.shadowBlur=30; }
-    vocCtx.fillStyle=handOver?'#3a0a14':'rgba(180,20,50,.82)';
-    vocCtx.strokeStyle=handOver?'#ff6584':'rgba(255,255,255,.4)';
-    vocCtx.lineWidth=handOver?3:2;
+    if(handOverX&&!promptVisible){ vocCtx.shadowColor='#ff6584'; vocCtx.shadowBlur=30; }
+    vocCtx.fillStyle=(handOverX&&!promptVisible)?'#3a0a14':'rgba(180,20,50,.82)';
+    vocCtx.strokeStyle=(handOverX&&!promptVisible)?'#ff6584':'rgba(255,255,255,.4)';
+    vocCtx.lineWidth=2;
     vocCtx.beginPath(); vocCtx.roundRect(bx,by,sz,sz,sz*.18); vocCtx.fill(); vocCtx.stroke();
     vocCtx.fillStyle='#fff';
     vocCtx.font=`900 ${sz*.52}px Arial,sans-serif`;
     vocCtx.textAlign='center'; vocCtx.textBaseline='middle';
     vocCtx.shadowColor='rgba(0,0,0,.5)'; vocCtx.shadowBlur=4;
     vocCtx.fillText('✕',bx+sz/2,by+sz/2);
-    // Dwell ring
-    if(vocDwell>0){
+    if(vocDwell>0&&!promptVisible){
       vocCtx.strokeStyle='#ff6584'; vocCtx.lineWidth=5; vocCtx.lineCap='round';
       vocCtx.shadowColor='#ff6584'; vocCtx.shadowBlur=12;
       vocCtx.beginPath(); vocCtx.arc(bx+sz/2,by+sz/2,sz/2+6,-Math.PI/2,-Math.PI/2+Math.PI*2*vocDwell); vocCtx.stroke();
@@ -795,136 +828,92 @@ function goTo(screen){
 // ═══════════════════════════════════════════════════════════
 let audioUnlocked = false;
 
-// Unlock audio on very first tap anywhere (before video)
-document.addEventListener('touchend', ()=>{ audioUnlocked=true; }, {once:true, passive:true});
-document.addEventListener('mouseup',  ()=>{ audioUnlocked=true; }, {once:true});
+// ── VIDEO PLAYER ─────────────────────────────────────────────
+// Simple approach: show overlay, load video, show big tap button.
+// User taps → play with sound. Works on all browsers including iOS.
 
-function playVideo(src,name){
-  if(!src){flashMsg(`No file for "${name}" yet`);return;}
+function playVideo(src, name){
+  if(!src){ flashMsg('No file yet'); return; }
 
+  // Stop any previous video
   fullVideo.pause();
-  fullVideo.removeEventListener('progress',onVideoProgress);
-  fullVideo.removeEventListener('canplay',onVideoCanPlay);
-  fullVideo.removeEventListener('waiting',onVideoWaiting);
-  fullVideo.removeEventListener('playing',onVideoPlaying);
-  fullVideo.removeEventListener('ended',closeVideoPlayer);
+  fullVideo.removeAttribute('src');
 
-  // Set attributes before load()
-  fullVideo.muted=true;          // start muted — required for autoplay
-  fullVideo.playsInline=true;
-  fullVideo.preload='auto';
-  fullVideo.volume=1.0;
-  fullVideo.src=src;
-  fullVideo.load();              // iOS Safari REQUIRES explicit load() call
+  // Set up video
+  fullVideo.src = src;
+  fullVideo.muted = false;
+  fullVideo.volume = 1.0;
+  fullVideo.playsInline = true;
+  fullVideo.preload = 'auto';
+  fullVideo.load();
 
-  tapPrompt.style.display='none';
+  // Show overlay
   videoOverlay.classList.add('show');
-  videoLoadingEl.classList.add('show');
-  videoLoadingMsg.classList.add('show');
-  videoLoadingBar.style.width='0%';
-  videoLoadingMsg.textContent='Loading video…';
+  tapPrompt.style.display = 'flex';
+  tapPrompt.querySelector('div:last-child').textContent = 'Tap to play — ' + name;
+  videoLoadingEl.classList.remove('show');
 
-  fullVideo.addEventListener('progress',onVideoProgress);
-  fullVideo.addEventListener('canplay',onVideoCanPlay,{once:true});
-  fullVideo.addEventListener('waiting',onVideoWaiting);
-  fullVideo.addEventListener('playing',onVideoPlaying);
-  fullVideo.addEventListener('ended',closeVideoPlayer,{once:true});
-  fullVideo.addEventListener('error',e=>{
-    const err=fullVideo.error;
-    dbgErr('Video error: code='+(err?err.code:'?')+' msg='+(err?err.message:'?'));
-    videoLoadingMsg.textContent='Error loading video';
-    clearTimeout(fullVideo._loadTimeout);
-  },{once:true});
+  // Listen for errors
+  fullVideo.onerror = ()=>{
+    const c = fullVideo.error ? fullVideo.error.code : '?';
+    dbgErr('Video error code='+c+' src='+src);
+    tapPrompt.querySelector('div:last-child').textContent = 'Error loading video (code '+c+')';
+  };
 
-  // Timeout fallback — if canplay never fires after 8s, show tap prompt
-  clearTimeout(fullVideo._loadTimeout);
-  fullVideo._loadTimeout=setTimeout(()=>{
-    if(fullVideo.paused&&videoOverlay.classList.contains('show')){
-      dbgWarn('canplay timeout — showing tap prompt');
-      tapPrompt.style.display='flex';
-      videoLoadingEl.classList.remove('show');
-      videoLoadingMsg.classList.remove('show');
-    }
-  },8000);
+  // Auto-attempt play (works on desktop, may need tap on iOS)
+  fullVideo.play().then(()=>{
+    dbgOk('Autoplay succeeded');
+    tapPrompt.style.display = 'none';
+    fullVideo.muted = false;
+    fullVideo.volume = 1.0;
+  }).catch(e=>{
+    dbgWarn('Autoplay blocked ('+e.message+') — tap prompt shown');
+    // Tap prompt already showing — user taps to play
+  });
+
+  fullVideo.addEventListener('ended', closeVideoPlayer, {once:true});
+  fullVideo.addEventListener('playing', ()=>{
+    tapPrompt.style.display='none';
+    fullVideo.muted=false; fullVideo.volume=1.0;
+    dbgOk('playing vol='+fullVideo.volume+' muted='+fullVideo.muted);
+  }, {once:true});
 
   startVideoOverlay();
 }
 
-function onVideoCanPlay(){
-  clearTimeout(fullVideo._loadTimeout);
-  videoLoadingEl.classList.remove('show');
-  videoLoadingMsg.classList.remove('show');
-  dbgOk('canplay fired — readyState:'+fullVideo.readyState);
-  fullVideo.muted=true;
-  fullVideo.play().then(()=>{
-    dbgOk('playback started, unmuting');
-    fullVideo.muted=false;
-    fullVideo.volume=1.0;
-    tapPrompt.style.display='none';
-  }).catch(e=>{
-    dbgErr('play() blocked: '+e.message);
-    tapPrompt.style.display='flex';
-    videoLoadingEl.classList.remove('show');
-    videoLoadingMsg.classList.remove('show');
-  });
-}
-
-function onVideoWaiting(){
-  videoLoadingEl.classList.add('show');
-  videoLoadingMsg.classList.add('show');
-  videoLoadingMsg.textContent='Buffering…';
-}
-
-function onVideoPlaying(){
-  videoLoadingEl.classList.remove('show');
-  videoLoadingMsg.classList.remove('show');
-  tapPrompt.style.display='none';
-  fullVideo.muted=false;
-  fullVideo.volume=1.0;
-  dbgOk('playing — muted:'+fullVideo.muted+' vol:'+fullVideo.volume);
-}
-
-function onVideoProgress(){
-  if(!fullVideo.duration) return;
-  try{
-    const buf=fullVideo.buffered;
-    if(buf.length>0){
-      const pct=Math.round((buf.end(buf.length-1)/fullVideo.duration)*100);
-      videoLoadingBar.style.width=pct+'%';
-    }
-  }catch(e){}
-}
-
-// Tap prompt — direct user gesture, unmutes and plays
+// Tap prompt handler — the most reliable way to start audio on iOS
 tapPrompt.addEventListener('click', ()=>{
-  tapPrompt.style.display='none';
-  fullVideo.muted=false;
-  fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
+  tapPrompt.style.display = 'none';
+  fullVideo.muted = false;
+  fullVideo.volume = 1.0;
+  fullVideo.play().catch(e=>dbgErr('Tap play failed: '+e.message));
 });
-tapPrompt.addEventListener('touchend', (e)=>{
+tapPrompt.addEventListener('touchend', e=>{
   e.preventDefault();
-  tapPrompt.style.display='none';
-  fullVideo.muted=false;
-  fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
-},{passive:false});
+  tapPrompt.style.display = 'none';
+  fullVideo.muted = false;
+  fullVideo.volume = 1.0;
+  fullVideo.play().catch(e=>dbgErr('Tap play failed: '+e.message));
+}, {passive:false});
+
+function onVideoCanPlay(){}  // unused but kept to avoid reference errors
+function onVideoWaiting(){ videoLoadingEl.classList.add('show'); }
+function onVideoPlaying(){ videoLoadingEl.classList.remove('show'); }
+function onVideoProgress(){}
 
 function closeVideoPlayer(){
-  fullVideo.removeEventListener('progress',onVideoProgress);
-  fullVideo.removeEventListener('canplay',onVideoCanPlay);
-  fullVideo.removeEventListener('waiting',onVideoWaiting);
-  fullVideo.removeEventListener('playing',onVideoPlaying);
-  clearTimeout(fullVideo._loadTimeout);
   fullVideo.pause();
   fullVideo.removeAttribute('src');
   fullVideo.load();
+  fullVideo.onerror = null;
   videoOverlay.classList.remove('show');
+  tapPrompt.style.display = 'none';
   videoLoadingEl.classList.remove('show');
-  videoLoadingMsg.classList.remove('show');
-  tapPrompt.style.display='none';
   if(videoOverlayRaf){ cancelAnimationFrame(videoOverlayRaf); videoOverlayRaf=null; }
   vocCtx.clearRect(0,0,videoOverlayCanvas.width,videoOverlayCanvas.height);
+  dbgOk('Video closed');
 }
-closeVideoBtn.addEventListener('click',closeVideoPlayer);
+closeVideoBtn.addEventListener('click', closeVideoPlayer);
 
 // ═══════════════════════════════════════════════════════════
 //  BALLZ! GAME  — MediaPipe Pose + full body outline + sounds
