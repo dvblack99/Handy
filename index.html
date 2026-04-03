@@ -835,49 +835,54 @@ let audioUnlocked = false;
 function playVideo(src, name){
   if(!src){ flashMsg('No file yet'); return; }
 
-  // Stop any previous video
+  // Clean up previous
   fullVideo.pause();
-  fullVideo.removeAttribute('src');
+  fullVideo.onerror = null;
+  fullVideo.oncanplay = null;
 
-  // Set up video
-  fullVideo.src = src;
+  // Show overlay immediately so user sees something
+  videoOverlay.classList.add('show');
+  tapPrompt.style.display = 'flex';
+  tapPrompt.querySelector('div:last-child').textContent = name;
+  videoLoadingEl.classList.remove('show');
+
+  // Set src AFTER showing overlay
   fullVideo.muted = false;
   fullVideo.volume = 1.0;
   fullVideo.playsInline = true;
   fullVideo.preload = 'auto';
-  fullVideo.load();
+  fullVideo.src = src;
 
-  // Show overlay
-  videoOverlay.classList.add('show');
-  tapPrompt.style.display = 'flex';
-  tapPrompt.querySelector('div:last-child').textContent = 'Tap to play — ' + name;
-  videoLoadingEl.classList.remove('show');
-
-  // Listen for errors
+  // Error handler
   fullVideo.onerror = ()=>{
     const c = fullVideo.error ? fullVideo.error.code : '?';
-    dbgErr('Video error code='+c+' src='+src);
-    tapPrompt.querySelector('div:last-child').textContent = 'Error loading video (code '+c+')';
+    dbgErr('Video error code='+c);
+    tapPrompt.querySelector('div:last-child').textContent = 'Error loading video :(';
   };
 
-  // Auto-attempt play (works on desktop, may need tap on iOS)
-  fullVideo.play().then(()=>{
-    dbgOk('Autoplay succeeded');
+  // Wait for canplay then attempt autoplay — correct order
+  fullVideo.oncanplay = ()=>{
+    fullVideo.oncanplay = null;
+    dbgOk('canplay fired');
+    fullVideo.muted = false;
+    fullVideo.volume = 1.0;
+    fullVideo.play().then(()=>{
+      dbgOk('Playing with sound');
+      tapPrompt.style.display = 'none';
+    }).catch(e=>{
+      dbgWarn('Autoplay blocked: '+e.message);
+      // tap prompt stays — user taps/hovers to play
+    });
+  };
+
+  fullVideo.addEventListener('playing', ()=>{
     tapPrompt.style.display = 'none';
     fullVideo.muted = false;
     fullVideo.volume = 1.0;
-  }).catch(e=>{
-    dbgWarn('Autoplay blocked ('+e.message+') — tap prompt shown');
-    // Tap prompt already showing — user taps to play
-  });
-
-  fullVideo.addEventListener('ended', closeVideoPlayer, {once:true});
-  fullVideo.addEventListener('playing', ()=>{
-    tapPrompt.style.display='none';
-    fullVideo.muted=false; fullVideo.volume=1.0;
-    dbgOk('playing vol='+fullVideo.volume+' muted='+fullVideo.muted);
+    dbgOk('playing muted='+fullVideo.muted+' vol='+fullVideo.volume);
   }, {once:true});
 
+  fullVideo.addEventListener('ended', closeVideoPlayer, {once:true});
   startVideoOverlay();
 }
 
