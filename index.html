@@ -14,806 +14,1373 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 :root {
-  --bg:#0d0d1a; --surface:#16162a; --accent:#6c63ff; --accent2:#ff6584;
-  --green:#00e5a0; --yellow:#ffd166; --text:#ffffff; --text2:#c8c4f0;
-  --muted:#7870aa; --tile-border:rgba(255,255,255,.1);
+  --bg:#0d0d1a;
+  --surface:#1a1a2e;
+  --accent:#6c63ff;
+  --accent2:#ff6584;
+  --green:#00e5a0;
+  --yellow:#ffd166;
+  --text:#ffffff;
+  --text2:#d0ccff;
+  --muted:#8880bb;
+  --tile-border:rgba(255,255,255,.12);
 }
-html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
-  font-family:'Segoe UI',system-ui,sans-serif;-webkit-user-select:none;user-select:none; }
+html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text);
+  font-family:'Segoe UI',system-ui,sans-serif; -webkit-user-select:none; user-select:none; }
 
-/* ── SCREENS ─────────────────────────────────────────────── */
-.screen { position:fixed;inset:0;display:none;flex-direction:column;
-align-items:center;justify-content:center; }
-.screen.active { display:flex; }
+/* PERMISSION */
+#permission-screen { position:fixed; inset:0; display:flex; flex-direction:column;
+align-items:center; justify-content:center; gap:28px; background:var(–bg);
+z-index:1000; padding:32px; text-align:center; }
+#permission-screen h1 { font-size:clamp(2.4rem,9vw,5rem); font-weight:900; color:var(–text);
+text-shadow:0 0 40px rgba(108,99,255,.6); }
+#permission-screen p  { font-size:clamp(1.1rem,3.5vw,1.5rem); color:var(–text2); max-width:480px; line-height:1.7; }
+#start-btn { font-size:clamp(1.3rem,5vw,2rem); padding:24px 60px; border:none; border-radius:28px;
+background:linear-gradient(135deg,var(–accent),var(–accent2)); color:#fff; cursor:pointer; font-weight:800;
+box-shadow:0 0 50px rgba(108,99,255,.6); touch-action:manipulation; letter-spacing:.02em; }
 
-/* ── PERMISSION ──────────────────────────────────────────── */
-#perm-screen { background:var(–bg);z-index:100;gap:24px;padding:40px;text-align:center; }
-#perm-screen h1 { font-size:clamp(2.8rem,11vw,5.5rem);font-weight:900;
-background:linear-gradient(135deg,#a89cff,#ff6584);-webkit-background-clip:text;
--webkit-text-fill-color:transparent; }
-#perm-screen p  { font-size:clamp(1rem,3.5vw,1.4rem);color:var(–text2);max-width:480px; }
-#perm-btn { padding:18px 48px;font-size:clamp(1.1rem,4vw,1.5rem);font-weight:700;
-background:linear-gradient(135deg,var(–accent),var(–accent2));border:none;
-border-radius:50px;color:#fff;cursor:pointer;box-shadow:0 0 40px rgba(108,99,255,.5);
-transition:transform .15s,box-shadow .15s; }
-#perm-btn:active { transform:scale(.96); }
+/* STATUS BAR */
+#status-bar { display:none; padding:6px 16px; background:rgba(26,26,46,.95);
+border-bottom:1px solid rgba(255,255,255,.08); font-size:.8rem; color:var(–text2);
+align-items:center; gap:12px; min-height:38px; flex-shrink:0; }
+#status-bar.show { display:flex; }
+.sdot { width:9px; height:9px; border-radius:50%; background:#333; flex-shrink:0; transition:background .3s; }
+.sdot.ok   { background:var(–green); box-shadow:0 0 6px var(–green); }
+.sdot.warn { background:var(–yellow); }
+.sbar-btn { background:none; border:1px solid rgba(255,255,255,.18); color:var(–text2);
+padding:3px 12px; border-radius:20px; cursor:pointer; font-size:.75rem; touch-action:manipulation; }
+.sbar-btn.on { border-color:var(–accent); color:var(–accent); }
+#sbar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
-/* ── CAMERA BACKGROUND ───────────────────────────────────── */
-#cam-bg { position:fixed;inset:0;z-index:0; }
-#cam-video { position:absolute;inset:0;width:100%;height:100%;
-object-fit:cover;transform:scaleX(-1); }
+/* MAIN */
+#main { position:relative; overflow:hidden; display:none; width:100%; height:calc(100vh - 38px); }
+#main.show { display:block; }
+#ui-canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+#cam-video { position:absolute; top:-9999px; left:-9999px; width:320px; height:240px; }
 
-/* ── MENU SCREEN ─────────────────────────────────────────── */
-#menu-screen { background:rgba(13,13,26,.7);backdrop-filter:blur(4px);z-index:10; }
-.menu-grid { display:grid;grid-template-columns:1fr 1fr;gap:20px;
-padding:24px;width:100%;max-width:600px; }
-.menu-tile {
-aspect-ratio:1;display:flex;flex-direction:column;align-items:center;
-justify-content:center;gap:10px;border-radius:24px;cursor:pointer;
-border:2px solid var(–tile-border);background:rgba(22,22,42,.85);
-transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden;
-}
-.menu-tile::before { content:’’;position:absolute;inset:0;opacity:0;
-background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.15),transparent 70%);
-transition:opacity .2s; }
-.menu-tile:active::before { opacity:1; }
-.menu-tile .tile-icon { font-size:clamp(2.4rem,9vw,4rem); }
-.menu-tile .tile-label { font-size:clamp(.85rem,3vw,1.15rem);font-weight:700;
-color:var(–text2);letter-spacing:.04em;text-transform:uppercase; }
-.tile-videos  { border-color:rgba(255,101,132,.4); }
-.tile-music   { border-color:rgba(255,209,102,.4); }
-.tile-games   { border-color:rgba(0,229,160,.4); }
-.tile-other   { border-color:rgba(108,99,255,.4); }
+/* Camera PiP */
+#cam-preview { position:absolute; top:10px; left:10px; width:160px; height:120px;
+border-radius:12px; overflow:hidden; border:2px solid rgba(108,99,255,.6);
+box-shadow:0 4px 24px rgba(0,0,0,.7); z-index:50; display:none; }
+#cam-preview.show { display:block; }
+#preview-canvas { width:100%; height:100%; transform:scaleX(-1); }
 
-/* ── BACK / X BUTTON ─────────────────────────────────────── */
-/* Universal X — same on every sub-screen and game */
-.x-btn {
-position:fixed;top:20px;left:20px;z-index:99999;
-width:clamp(72px,18vw,110px);height:clamp(72px,18vw,110px);
-border-radius:50%;background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.5);
-display:flex;align-items:center;justify-content:center;
-font-size:clamp(2rem,7vw,3.5rem);color:#fff;cursor:pointer;
-transition:background .2s;backdrop-filter:blur(6px);
-/* Always above canvas */
-isolation:isolate;
-}
-.x-btn.dwell-active { background:rgba(255,100,132,.6); }
-.dwell-ring {
-position:absolute;inset:-4px;border-radius:50%;
-border:4px solid transparent;border-top-color:var(–accent2);
-animation:none;pointer-events:none;
-}
-@keyframes dwell-spin { to { transform:rotate(360deg); } }
+#sound-flash { position:absolute; inset:0; pointer-events:none;
+background:rgba(0,229,160,.1); opacity:0; z-index:60; transition:opacity .1s; }
 
-/* ── SUB-SCREEN WRAPPER ──────────────────────────────────── */
-#sub-screen { background:rgba(13,13,26,.75);backdrop-filter:blur(3px);z-index:10; }
-#sub-title { position:fixed;top:24px;left:50%;transform:translateX(-50%);
-font-size:clamp(1.1rem,4vw,1.6rem);font-weight:800;letter-spacing:.08em;
-text-transform:uppercase;color:var(–text2);z-index:10;pointer-events:none; }
-.sub-grid { display:grid;grid-template-columns:1fr 1fr;gap:20px;
-padding:24px;padding-top:90px;width:100%;max-width:600px;overflow-y:auto;
-max-height:100vh; }
+/* Loading */
+#loading { position:absolute; inset:0; background:var(–bg); display:flex; flex-direction:column;
+align-items:center; justify-content:center; gap:20px; z-index:90; }
+#loading.gone { display:none; }
+.spinner { width:52px; height:52px; border:4px solid rgba(108,99,255,.25);
+border-top-color:var(–accent); border-radius:50%; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+#load-msg { color:var(–text2); font-size:1rem; font-weight:500; }
 
-/* ── VIDEO PLAYER ────────────────────────────────────────── */
-#video-player { background:#000;z-index:20; }
-#player-vid { width:100%;height:100%;object-fit:contain; }
-#video-loading { position:fixed;bottom:0;left:0;right:0;height:5px;
-background:rgba(255,255,255,.1);z-index:30; }
-#video-loading-bar { height:100%;width:0;background:var(–accent);
-transition:width .2s; }
+/* Video overlay */
+#video-overlay { position:fixed; inset:0; background:#000; z-index:500;
+display:none; flex-direction:column; align-items:center; justify-content:center; }
+#video-overlay.show { display:flex; }
+#full-video { width:100%; height:100%; object-fit:contain; background:#000; }
+#close-video { position:absolute; top:20px; right:20px; width:56px; height:56px;
+border-radius:50%; background:rgba(0,0,0,.8); border:2px solid rgba(255,255,255,.4);
+color:#fff; font-size:1.4rem; cursor:pointer; display:flex; align-items:center;
+justify-content:center; z-index:10; touch-action:manipulation; font-weight:700; }
+#video-loading { position:absolute; bottom:0; left:0; right:0; height:6px;
+background:rgba(255,255,255,.1); z-index:20; display:none; }
+#video-loading.show { display:block; }
+#video-loading-bar { height:100%; background:var(–accent); width:0%; transition:width .3s; border-radius:3px; }
+#video-loading-msg { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap; z-index:21; display:none; }
+#video-loading-msg.show { display:block; }
 
-/* ── BALLZ GAME ──────────────────────────────────────────── */
-#ballz-screen { background:transparent;z-index:15; }
-#ballz-canvas { position:fixed;inset:0;width:100%;height:100%;z-index:15;pointer-events:none; }
+/* Ballz game overlay */
+#ballz-overlay { position:fixed; inset:0; z-index:400; display:none; }
+#ballz-overlay.show { display:block; }
+#ballz-canvas { position:absolute; inset:0; width:100%; height:100%; }
+#ballz-cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+transform:scaleX(-1); }
+#ballz-close { display:none; }
 
-/* ── DWELL CURSOR ────────────────────────────────────────── */
-#dwell-cursor {
-position:fixed;width:54px;height:54px;border-radius:50%;
-border:3px solid rgba(255,255,255,.7);pointer-events:none;z-index:9998;
-transform:translate(-50%,-50%);transition:opacity .2s;opacity:0;
-background:rgba(255,255,255,.08);
-}
-#dwell-cursor.visible { opacity:1; }
-#dwell-cursor-fill {
-position:absolute;inset:3px;border-radius:50%;
-background:conic-gradient(var(–accent2) 0%, transparent 0%);
-transition:background .05s;
+/* Debug */
+#debug { position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,.92);
+color:var(–green); font-family:monospace; font-size:12px; padding:7px 11px;
+z-index:200; max-height:150px; overflow-y:auto; display:none; border-top:1px solid #333; }
+#debug.show { display:block; }
+#debug-toggle { position:fixed; bottom:7px; right:7px; background:rgba(0,0,0,.7);
+color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
+font-size:11px; cursor:pointer; z-index:201; touch-action:manipulation; }
+
+@keyframes fadeUp {
+from{opacity:0;transform:translateX(-50%) translateY(16px);}
+to{opacity:1;transform:translateX(-50%) translateY(0);}
 }
 </style>
 
 </head>
 <body>
 
-<!-- DWELL CURSOR -->
+<div id="debug"></div>
+<button id="debug-toggle">🐛</button>
 
-<div id="dwell-cursor"><div id="dwell-cursor-fill"></div></div>
-
-<!-- PERMISSION SCREEN -->
-
-<div id="perm-screen" class="screen active">
+<div id="permission-screen">
   <h1>👋 HandCam</h1>
-  <p>Control everything with your hands and body — no touching required.</p>
-  <button id="perm-btn" onclick="startCamera()">Enable Camera</button>
+  <p>Move your hand in front of the camera to control the cursor. Hover a tile to select it.</p>
+  <button id="start-btn">Tap to Start</button>
 </div>
 
-<!-- CAMERA BACKGROUND (always running after permission) -->
-
-<div id="cam-bg" style="display:none">
-  <video id="cam-video" autoplay playsinline muted></video>
+<div id="status-bar">
+  <div class="sdot" id="cam-dot"></div><span id="cam-lbl">Camera</span>
+  <div class="sdot" id="hand-dot"></div><span id="hand-lbl">Hand</span>
+  <div id="sbar-right">
+    <div class="sdot" id="mic-dot"></div>
+    <button class="sbar-btn" id="mic-btn">🎤 Mic</button>
+    <button class="sbar-btn" id="preview-btn">📷</button>
+  </div>
 </div>
 
-<!-- MENU SCREEN -->
+<div id="main">
+  <canvas id="ui-canvas"></canvas>
+  <video id="cam-video" playsinline autoplay muted></video>
+  <div id="cam-preview"><canvas id="preview-canvas"></canvas></div>
+  <div id="sound-flash"></div>
+  <div id="loading"><div class="spinner"></div><div id="load-msg">Loading…</div></div>
+</div>
 
-<div id="menu-screen" class="screen">
-  <div class="menu-grid">
-    <div class="menu-tile tile-videos" onclick="openSection('videos')">
-      <span class="tile-icon">🎬</span>
-      <span class="tile-label">Videos</span>
-    </div>
-    <div class="menu-tile tile-music" onclick="openSection('music')">
-      <span class="tile-icon">🎵</span>
-      <span class="tile-label">Music</span>
-    </div>
-    <div class="menu-tile tile-games" onclick="openSection('games')">
-      <span class="tile-icon">🎮</span>
-      <span class="tile-label">Games</span>
-    </div>
-    <div class="menu-tile tile-other" onclick="openSection('other')">
-      <span class="tile-icon">⭐</span>
-      <span class="tile-label">Other</span>
+<!-- Video player -->
+
+<div id="video-overlay">
+  <video id="full-video" playsinline></video>
+  <button id="close-video">✕</button>
+  <div id="video-loading"><div id="video-loading-bar"></div></div>
+  <div id="video-loading-msg">Loading video…</div>
+  <!-- iOS tap-to-play prompt -->
+  <div id="tap-prompt" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.55);
+    align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:15;cursor:pointer">
+    <div style="font-size:5rem">▶️</div>
+    <div style="color:#fff;font-size:1.4rem;font-weight:700;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.8)">
+      Tap to play with sound
     </div>
   </div>
 </div>
 
-<!-- SUB-SCREEN (Videos/Music/Games/Other listings) -->
+<!-- Ballz! Game -->
 
-<div id="sub-screen" class="screen">
-  <div id="sub-title"></div>
-  <div class="sub-grid" id="sub-grid"></div>
-</div>
-
-<!-- VIDEO PLAYER -->
-
-<div id="video-player" class="screen">
-  <video id="player-vid" playsinline autoplay></video>
-  <div id="video-loading"><div id="video-loading-bar"></div></div>
-</div>
-
-<!-- BALLZ GAME -->
-
-<div id="ballz-screen" class="screen">
+<div id="ballz-overlay">
+  <video id="ballz-cam" playsinline autoplay muted></video>
   <canvas id="ballz-canvas"></canvas>
+  <button id="ballz-close">✕</button>
 </div>
 
-<!-- MediaPipe Pose -->
-
-<script src="https://unpkg.com/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
-
-<script src="https://unpkg.com/@mediapipe/camera_utils@0.3.1632090399/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
 
 <script>
+'use strict';
+
 // ═══════════════════════════════════════════════════════════
-//  GLOBALS
+//  CONFIG — loaded from settings.json, falls back to defaults
+// ═══════════════════════════════════════════════════════════
+const DEFAULTS = {
+  global: { dwellMs:2000, sensitivity:1.8, smoothing:0.18, cursorRadius:40,
+            micOn:false, previewOn:false, scrollZone:0.14, scrollSpeed:5 },
+  videos: { autoplay:true, loop:false, volume:1.0 },
+  music:  { volume:1.0 },
+  games:  { ballzMaxBalls:5, ballzGravity:0.3, ballzSpawnRate:90 },
+  other:  {},
+};
+let CFG = JSON.parse(JSON.stringify(DEFAULTS.global)); // mutable working copy
+let SECTION_CFG = JSON.parse(JSON.stringify(DEFAULTS));
+
+async function loadSettings(){
+  try{
+    const r=await fetch('settings.json?t='+Date.now());
+    if(!r.ok) throw new Error('no settings.json');
+    const s=await r.json();
+    // Merge each section
+    if(s.global)  Object.assign(CFG, s.global);
+    if(s.videos)  Object.assign(SECTION_CFG.videos, s.videos);
+    if(s.music)   Object.assign(SECTION_CFG.music,  s.music);
+    if(s.games)   Object.assign(SECTION_CFG.games,  s.games);
+    if(s.other)   Object.assign(SECTION_CFG.other,  s.other);
+    dbgOk('Settings loaded');
+  }catch(e){
+    dbgWarn('No settings.json, using defaults');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DEBUG
+// ═══════════════════════════════════════════════════════════
+const debugEl=document.getElementById('debug');
+document.getElementById('debug-toggle').addEventListener('click',()=>debugEl.classList.toggle('show'));
+function dbg(m,c){const d=document.createElement('div'),t=new Date().toLocaleTimeString('en',{hour12:false});d.style.color=c||'#00e5a0';d.textContent=`[${t}] ${m}`;debugEl.appendChild(d);debugEl.scrollTop=debugEl.scrollHeight;while(debugEl.children.length>50)debugEl.removeChild(debugEl.firstChild);}
+function dbgOk(m){dbg('✓ '+m,'#00e5a0');}function dbgErr(m){dbg('❌ '+m,'#ff6584');}function dbgWarn(m){dbg('⚠ '+m,'#ffd166');}
+const _ce=console.error.bind(console);console.error=(...a)=>{_ce(...a);dbgErr(a.join(' '));};
+const _cw=console.warn.bind(console);console.warn=(...a)=>{_cw(...a);dbgWarn(a.join(' '));};
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+const state = {
+  cx:.5,cy:.5,sx:.5,sy:.5,handVisible:false,
+  hoveredTile:null,dwellStart:null,dwellProgress:0,
+  lastSoundTime:0,micStream:null,audioCtx:null,analyser:null,
+  screen:'menu',
+  scrollY:0,scrollTarget:0,
+  videos:[],thumbCache:{},
+  camStream:null,
+};
+
+// ═══════════════════════════════════════════════════════════
+//  DOM
+// ═══════════════════════════════════════════════════════════
+const permScreen=document.getElementById('permission-screen');
+const startBtn=document.getElementById('start-btn');
+const statusBar=document.getElementById('status-bar');
+const mainDiv=document.getElementById('main');
+const canvas=document.getElementById('ui-canvas');
+const ctx=canvas.getContext('2d');
+const camVideo=document.getElementById('cam-video');
+const camPreview=document.getElementById('cam-preview');
+const prevCanvas=document.getElementById('preview-canvas');
+const prevCtx=prevCanvas.getContext('2d');
+const loadDiv=document.getElementById('loading');
+const loadMsg=document.getElementById('load-msg');
+const soundFlash=document.getElementById('sound-flash');
+const camDot=document.getElementById('cam-dot');
+const handDot=document.getElementById('hand-dot');
+const micDot=document.getElementById('mic-dot');
+const micBtn=document.getElementById('mic-btn');
+const previewBtn=document.getElementById('preview-btn');
+const videoOverlay=document.getElementById('video-overlay');
+const fullVideo=document.getElementById('full-video');
+const closeVideoBtn=document.getElementById('close-video');
+const tapPrompt=document.getElementById('tap-prompt');
+const videoLoadingBar=document.getElementById('video-loading-bar');
+const videoLoadingEl=document.getElementById('video-loading');
+const videoLoadingMsg=document.getElementById('video-loading-msg');
+const ballzOverlay=document.getElementById('ballz-overlay');
+const ballzCam=document.getElementById('ballz-cam');
+const ballzCanvas=document.getElementById('ballz-canvas');
+const ballzClose=document.getElementById('ballz-close');
+
+// ═══════════════════════════════════════════════════════════
+//  COLOURS & THEME
+// ═══════════════════════════════════════════════════════════
+const TILE_COLORS=['#6c63ff','#ff6584','#ff9f43','#00e5a0','#4ecdc4','#a29bfe','#fd79a8','#ffeaa7','#74b9ff','#55efc4'];
+const BACK_COLOR='#cc2244';
+
+// ═══════════════════════════════════════════════════════════
+//  SCREEN / TILE DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+function getScreenTiles() {
+  const W=canvas.width, H=canvas.height;
+
+  if(state.screen==='menu') return layoutGrid([
+    {id:'goto_videos', label:'🎬', sublabel:'Videos',  color:'#6c63ff', action:'nav', target:'videos'},
+    {id:'goto_music',  label:'🎵', sublabel:'Music',   color:'#ff6584', action:'nav', target:'music'},
+    {id:'goto_games',  label:'🎮', sublabel:'Games',   color:'#ff9f43', action:'nav', target:'games'},
+    {id:'goto_other',  label:'⭐', sublabel:'Other',   color:'#00e5a0', action:'nav', target:'other'},
+  ],W,H,2,false);
+
+  if(state.screen==='videos'){
+    const vTiles=state.videos.map((v,i)=>({
+      id:'vid_'+i, label:'', sublabel:v.name, color:TILE_COLORS[i%TILE_COLORS.length],
+      action:'video', src:v.src, vidId:v.id,
+    }));
+    return layoutGrid([backTile(),...vTiles],W,H,2,true);
+  }
+
+  if(state.screen==='music') return layoutGrid([
+    backTile(),
+    {id:'music_piano', label:'🎹', sublabel:'Piano',  color:'#6c63ff', action:'comingsoon'},
+    {id:'music_guitar',label:'🎸', sublabel:'Guitar', color:'#ff6584', action:'comingsoon'},
+    {id:'music_drums', label:'🥁', sublabel:'Drums',  color:'#ff9f43', action:'comingsoon'},
+  ],W,H,2,false);
+
+  if(state.screen==='games') return layoutGrid([
+    backTile(),
+    {id:'game_dressup',  label:'👗', sublabel:'Dress Up',  color:'#ff6584', action:'comingsoon'},
+    {id:'game_catapult', label:'🏹', sublabel:'Catapult',  color:'#ff9f43', action:'comingsoon'},
+    {id:'game_ballz',    label:'🔵', sublabel:'Ballz!',    color:'#4ecdc4', action:'ballz'},
+  ],W,H,2,false);
+
+  if(state.screen==='other') return layoutGrid([
+    backTile(),
+    {id:'oth_1',label:'1',sublabel:'Option 1',color:'#6c63ff',action:'comingsoon'},
+    {id:'oth_2',label:'2',sublabel:'Option 2',color:'#ff6584',action:'comingsoon'},
+    {id:'oth_3',label:'3',sublabel:'Option 3',color:'#ff9f43',action:'comingsoon'},
+  ],W,H,2,false);
+
+  return [];
+}
+
+function backTile(target) {
+  return {id:'back',label:'✕',sublabel:'Menu',color:BACK_COLOR,
+    action:target?'nav':'back',target:target||'menu'};
+}
+
+function layoutGrid(tiles,W,H,cols,scrollable){
+  const pad=18;
+  const tileW=(W-pad*(cols+1))/cols;
+  const rows=Math.ceil(tiles.length/cols);
+  const tileH=scrollable
+    ? Math.max(160,Math.min(220,(H-pad*3)/2))
+    : Math.min((H-pad*(rows+1))/rows,260);
+  return tiles.map((t,i)=>{
+    const col=i%cols, row=Math.floor(i/cols);
+    return{...t,
+      x:pad+col*(tileW+pad),
+      y:pad+row*(tileH+pad)-(scrollable?state.scrollY:0),
+      w:tileW,h:tileH};
+  });
+}
+
+function isScrollable(){return state.screen==='videos';}
+
+function maxScroll(){
+  if(!isScrollable()) return 0;
+  const W=canvas.width,H=canvas.height,pad=18,cols=2;
+  const tileH=Math.max(160,Math.min(220,(H-pad*3)/2));
+  const n=state.videos.length+1;
+  const rows=Math.ceil(n/cols);
+  return Math.max(0,rows*(tileH+pad)+pad-H);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  VIDEO LIBRARY
+// ═══════════════════════════════════════════════════════════
+const COLORS=TILE_COLORS;
+async function loadVideoLibrary(){
+  try{
+    const r=await fetch('videos/index.json');
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const list=await r.json();
+    state.videos=list.map((v,i)=>({
+      id:'vid_'+i,
+      name:v.name||v.file.replace(/\.[^.]+$/,'').replace(/[-_]/g,' '),
+      src:'videos/'+v.file,
+      thumb:v.thumb?'videos/'+v.thumb:null,
+      color:COLORS[i%COLORS.length],
+    }));
+    dbgOk(`${state.videos.length} videos loaded`);
+    state.videos.forEach(v=>v.thumb?loadServerThumb(v):generateThumb(v));
+  }catch(e){
+    dbgWarn('No index.json: '+e.message);
+    state.videos=[];
+  }
+}
+
+async function loadServerThumb(video){
+  try{
+    const img=new Image(); img.crossOrigin='anonymous';
+    await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=video.thumb+'?t=1';});
+    const c=document.createElement('canvas'); c.width=320; c.height=180;
+    c.getContext('2d').drawImage(img,0,0,320,180);
+    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.85));
+    state.thumbCache[video.src]=await createImageBitmap(blob);
+  }catch(e){generateThumb(video);}
+}
+
+async function generateThumb(video){
+  if(!video.src) return;
+  try{
+    const v=document.createElement('video');
+    v.src=video.src; v.muted=true; v.playsInline=true; v.preload='metadata';
+    await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=rej;v.load();});
+    v.currentTime=Math.min(3,v.duration*.1);
+    await new Promise(res=>{v.onseeked=res;});
+    const c=document.createElement('canvas'); c.width=320; c.height=180;
+    c.getContext('2d').drawImage(v,0,0,320,180);
+    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.75));
+    state.thumbCache[video.src]=await createImageBitmap(blob);
+  }catch(e){dbgWarn('Thumb fail: '+video.name);}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════
+function resize(){
+  canvas.width=mainDiv.offsetWidth; canvas.height=mainDiv.offsetHeight;
+  prevCanvas.width=160; prevCanvas.height=120;
+}
+
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
+
+function render(ts){
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Background gradient
+  const bgGrad=ctx.createLinearGradient(0,0,0,H);
+  bgGrad.addColorStop(0,'#0d0d1a'); bgGrad.addColorStop(1,'#12122a');
+  ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
+
+  // Subtle dot grid
+  ctx.fillStyle='rgba(108,99,255,.06)';
+  for(let x=30;x<W;x+=40) for(let y=30;y<H;y+=40){
+    ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fill();
+  }
+
+  const tiles=getScreenTiles();
+
+  // Screen title
+  const titles={menu:'',videos:'🎬  Videos',music:'🎵  Music',games:'🎮  Games',
+    other:'⭐  Other',settings:'⚙️  Settings'};
+  const title=titles[state.screen]||'';
+  if(title){
+    ctx.save(); ctx.fillStyle='rgba(255,255,255,.35)';
+    ctx.font='700 17px Segoe UI,system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(title,W/2,8); ctx.restore();
+  }
+
+  // Scroll arrows
+  if(isScrollable()){
+    if(state.scrollY>0) drawArrow(W/2,26,'up');
+    if(state.scrollY<maxScroll()) drawArrow(W/2,H-26,'down');
+  }
+
+  // TILES
+  for(const tile of tiles){
+    if(tile.y+tile.h<0||tile.y>H) continue;
+    const hov=state.hoveredTile===tile.id;
+    const isBack=tile.id==='back';
+
+    // Outer glow on hover
+    if(hov){
+      ctx.save(); ctx.shadowColor=tile.color; ctx.shadowBlur=36;
+      ctx.fillStyle=tile.color+'20';
+      rr(tile.x,tile.y,tile.w,tile.h,22); ctx.fill(); ctx.restore();
+    }
+
+    // Tile background
+    ctx.save();
+    if(isBack){
+      ctx.fillStyle=hov?'#3a0a14':'#280a0f';
+    } else {
+      const g=ctx.createLinearGradient(tile.x,tile.y,tile.x,tile.y+tile.h);
+      if(hov){
+        g.addColorStop(0,tile.color+'40');
+        g.addColorStop(1,tile.color+'15');
+      } else {
+        g.addColorStop(0,'#1e1e38');
+        g.addColorStop(1,'#141428');
+      }
+      ctx.fillStyle=g;
+    }
+    rr(tile.x,tile.y,tile.w,tile.h,22); ctx.fill();
+
+    // Border
+    ctx.strokeStyle=hov?tile.color+'dd':isBack?'rgba(200,50,80,.3)':'rgba(255,255,255,.1)';
+    ctx.lineWidth=hov?2.5:1.5;
+    rr(tile.x,tile.y,tile.w,tile.h,22); ctx.stroke();
+    ctx.restore();
+
+    // Thumbnail for video tiles
+    const vid=state.videos.find(v=>v.id===tile.vidId);
+    if(vid&&state.thumbCache[vid.src]){
+      ctx.save();
+      rr(tile.x,tile.y,tile.w,tile.h,22); ctx.clip();
+      const tb=state.thumbCache[vid.src];
+      const sc=Math.max(tile.w/tb.width,tile.h/tb.height);
+      const dw=tb.width*sc,dh=tb.height*sc;
+      ctx.globalAlpha=0.45;
+      ctx.drawImage(tb,tile.x+(tile.w-dw)/2,tile.y+(tile.h-dh)/2,dw,dh);
+      ctx.globalAlpha=1;
+      const ov=ctx.createLinearGradient(tile.x,tile.y,tile.x,tile.y+tile.h);
+      ov.addColorStop(0,'rgba(13,13,26,.1)'); ov.addColorStop(1,'rgba(13,13,26,.8)');
+      ctx.fillStyle=ov; ctx.fillRect(tile.x,tile.y,tile.w,tile.h);
+      ctx.restore();
+    }
+
+    // Emoji / icon
+    if(tile.label){
+      const emojiSize=isBack?Math.min(tile.h*.5,90):Math.min(tile.h*.44,76);
+      ctx.save();
+      ctx.font=`${emojiSize}px serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const labelY=tile.sublabel ? tile.y+tile.h*.42 : tile.y+tile.h/2;
+      ctx.fillText(tile.label,tile.x+tile.w/2,labelY);
+      ctx.restore();
+    }
+
+    // Sublabel
+    if(tile.sublabel){
+      const fs=Math.min(tile.w/8,20);
+      let sub=tile.sublabel;
+      ctx.save();
+      ctx.font=`700 ${fs}px 'Segoe UI',system-ui,sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillStyle=hov?'#ffffff':'rgba(255,255,255,.88)';
+      ctx.shadowColor='rgba(0,0,0,.95)'; ctx.shadowBlur=10;
+      const maxW=tile.w-18;
+      while(sub.length>3&&ctx.measureText(sub).width>maxW) sub=sub.slice(0,-1);
+      if(sub!==tile.sublabel) sub=sub.slice(0,-1)+'…';
+      ctx.fillText(sub,tile.x+tile.w/2,tile.y+tile.h-10);
+      ctx.restore();
+    }
+
+    // Accent line at bottom on hover
+    if(hov&&!isBack){
+      ctx.save();
+      ctx.fillStyle=tile.color;
+      ctx.shadowColor=tile.color; ctx.shadowBlur=8;
+      ctx.beginPath();
+      ctx.roundRect(tile.x+tile.w*.2,tile.y+tile.h-4,tile.w*.6,3,2);
+      ctx.fill(); ctx.restore();
+    }
+
+    // Dwell ring
+    if(hov&&state.dwellProgress>0){
+      const rx=tile.x+tile.w-26,ry=tile.y+26,rr2=17;
+      ctx.save();
+      ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=4;
+      ctx.beginPath(); ctx.arc(rx,ry,rr2,0,Math.PI*2); ctx.stroke();
+      ctx.strokeStyle=tile.id==='back'?'#ff6584':'#00e5a0';
+      ctx.lineWidth=4; ctx.lineCap='round';
+      ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(rx,ry,rr2,-Math.PI/2,-Math.PI/2+Math.PI*2*state.dwellProgress); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Scroll zone fade
+  if(isScrollable()){
+    const cy2=state.sy*H,zone=H*CFG.scrollZone;
+    if(cy2<zone&&state.scrollY>0){
+      ctx.save(); ctx.globalAlpha=.12; ctx.fillStyle='#6c63ff'; ctx.fillRect(0,0,W,zone); ctx.restore();
+    }
+    if(cy2>H-zone&&state.scrollY<maxScroll()){
+      ctx.save(); ctx.globalAlpha=.12; ctx.fillStyle='#6c63ff'; ctx.fillRect(0,H-zone,W,zone); ctx.restore();
+    }
+  }
+
+  // CURSOR
+  const cx2=state.sx*W,cy2=state.sy*H,R=CFG.cursorRadius;
+  if(state.handVisible){
+    ctx.save();
+    ctx.shadowColor='#6c63ff'; ctx.shadowBlur=40;
+    ctx.beginPath(); ctx.arc(cx2,cy2,R,0,Math.PI*2);
+    ctx.strokeStyle='rgba(108,99,255,.7)'; ctx.lineWidth=3; ctx.stroke();
+    const cg=ctx.createRadialGradient(cx2-R*.3,cy2-R*.3,0,cx2,cy2,R);
+    cg.addColorStop(0,'rgba(180,160,255,.9)');
+    cg.addColorStop(1,'rgba(108,99,255,.35)');
+    ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(cx2,cy2,R*.6,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.arc(cx2,cy2,5,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  } else {
+    ctx.save(); ctx.strokeStyle='rgba(108,99,255,.22)'; ctx.lineWidth=2; ctx.setLineDash([6,6]);
+    ctx.beginPath(); ctx.arc(cx2,cy2,R,0,Math.PI*2); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.fillStyle='rgba(208,204,255,.5)';
+    ctx.font='500 17px Segoe UI,system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText('✋ Show your right hand to the camera',W/2,H-14);
+    ctx.restore();
+  }
+
+  // Camera preview PiP
+  if(CFG.previewOn&&camVideo.readyState>=2){
+    prevCtx.save(); prevCtx.scale(-1,1);
+    prevCtx.drawImage(camVideo,-160,0,160,120);
+    prevCtx.restore();
+  }
+
+  updateScroll();
+  updateDwell(ts,tiles);
+  requestAnimationFrame(render);
+}
+
+function drawArrow(x,y,dir){
+  ctx.save(); ctx.fillStyle='rgba(108,99,255,.6)';
+  ctx.shadowColor='#6c63ff'; ctx.shadowBlur=8;
+  ctx.beginPath();
+  if(dir==='up'){ctx.moveTo(x,y-12);ctx.lineTo(x+20,y+8);ctx.lineTo(x-20,y+8);}
+  else{ctx.moveTo(x,y+12);ctx.lineTo(x+20,y-8);ctx.lineTo(x-20,y-8);}
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SCROLL
+// ═══════════════════════════════════════════════════════════
+function updateScroll(){
+  if(!isScrollable()) return;
+  const H=canvas.height,cy2=state.sy*H,zone=H*CFG.scrollZone;
+  if(cy2<zone&&state.handVisible) state.scrollTarget=Math.max(0,state.scrollTarget-CFG.scrollSpeed);
+  else if(cy2>H-zone&&state.handVisible) state.scrollTarget=Math.min(maxScroll(),state.scrollTarget+CFG.scrollSpeed);
+  state.scrollY+=(state.scrollTarget-state.scrollY)*.12;
+  if(Math.abs(state.scrollTarget-state.scrollY)<.5) state.scrollY=state.scrollTarget;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DWELL
+// ═══════════════════════════════════════════════════════════
+function updateDwell(ts,tiles){
+  const W=canvas.width,H=canvas.height,curX=state.sx*W,curY=state.sy*H;
+  const zone=H*CFG.scrollZone;
+  if(isScrollable()&&(curY<zone||curY>H-zone)){
+    state.hoveredTile=null;state.dwellStart=null;state.dwellProgress=0;return;
+  }
+  let hit=null;
+  for(const t of tiles){
+    if(t.y+t.h<0||t.y>H) continue;
+    if(curX>=t.x&&curX<=t.x+t.w&&curY>=t.y&&curY<=t.y+t.h){hit=t;break;}
+  }
+  if(hit&&state.handVisible){
+    if(state.hoveredTile!==hit.id){state.hoveredTile=hit.id;state.dwellStart=ts;state.dwellProgress=0;}
+    else{
+      state.dwellProgress=Math.min((ts-state.dwellStart)/CFG.dwellMs,1);
+      if(state.dwellProgress>=1){selectTile(hit);state.dwellStart=ts+1000;state.dwellProgress=0;}
+    }
+  }else{state.hoveredTile=null;state.dwellStart=null;state.dwellProgress=0;}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SELECT
+// ═══════════════════════════════════════════════════════════
+function selectTile(tile){
+  soundFlash.style.background=tile.color+'20'; soundFlash.style.opacity='1';
+  setTimeout(()=>soundFlash.style.opacity='0',200);
+  if(tile.action==='back')       {goTo('menu');return;}
+  if(tile.action==='nav')        {goTo(tile.target);return;}
+  if(tile.action==='video')      {playVideo(tile.src,tile.sublabel||'Video');return;}
+  if(tile.action==='ballz')      {startBallz();return;}
+  if(tile.action==='comingsoon') {flashMsg('Coming soon! 🚀');return;}
+}
+
+function goTo(screen){
+  state.screen=screen; state.scrollY=0; state.scrollTarget=0;
+  state.hoveredTile=null; state.dwellStart=null; state.dwellProgress=0;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  VIDEO PLAYER — iOS audio fix
+//  iOS requires a direct user tap on the video element to allow audio.
+//  We show a fullscreen tap prompt over the video on first load.
 // ═══════════════════════════════════════════════════════════
 let audioUnlocked = false;
-let camStream     = null;
-let mpCamera      = null;
-let mpPose        = null;
-let poseResults   = null;
 
-// Navigation stack for back/X button
-const navStack = [];
-function currentScreen() { return navStack[navStack.length-1] || 'menu'; }
+// Unlock audio on very first tap anywhere (before video)
+document.addEventListener('touchend', ()=>{ audioUnlocked=true; }, {once:true, passive:true});
+document.addEventListener('mouseup',  ()=>{ audioUnlocked=true; }, {once:true});
 
-// ═══════════════════════════════════════════════════════════
-//  SCREEN MANAGEMENT
-// ═══════════════════════════════════════════════════════════
-function showScreen(id, pushToStack=true) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+function playVideo(src,name){
+  if(!src){flashMsg(`No file for "${name}" yet`);return;}
+  fullVideo.pause(); fullVideo.removeAttribute('src'); fullVideo.load();
+  fullVideo.src=src;
+  fullVideo.volume = SECTION_CFG.videos.volume ?? 1.0;
+  videoOverlay.classList.add('show');
+  videoLoadingEl.classList.add('show');
+  videoLoadingMsg.classList.add('show');
+  videoLoadingBar.style.width='0%';
+  videoLoadingMsg.textContent='Loading video…';
 
-  // Remove any lingering X buttons
-  document.querySelectorAll('.x-btn').forEach(b => b.remove());
-
-  if (id !== 'perm-screen' && id !== 'menu-screen') {
-    if (pushToStack) navStack.push(id);
-    addXButton();
-  }
-}
-
-function goBack() {
-  navStack.pop();
-  const prev = navStack[navStack.length-1];
-  if (!prev || prev === 'menu-screen') {
-    navStack.length = 0;
-    stopBallz();
-    stopVideo();
-    showScreen('menu-screen', false);
-  } else {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(prev).classList.add('active');
-    document.querySelectorAll('.x-btn').forEach(b => b.remove());
-    if (prev !== 'menu-screen') addXButton();
-  }
-}
-
-function addXButton() {
-  const btn = document.createElement('div');
-  btn.className = 'x-btn';
-  btn.id = 'x-btn';
-  btn.innerHTML = `✕<div class="dwell-ring" id="x-dwell-ring"></div>`;
-  btn.onclick = goBack;
-  document.body.appendChild(btn);
-  setupXDwell(btn);
-}
-
-// ═══════════════════════════════════════════════════════════
-//  DWELL: X BUTTON (hand hover to exit)
-// ═══════════════════════════════════════════════════════════
-let xDwellTimer = null;
-let xDwellStart = null;
-const DWELL_MS  = 1200;
-
-function setupXDwell(btn) {
-  // Called from pose tracking when hand is over the X
-}
-
-function triggerXDwell(hovering) {
-  const btn = document.getElementById('x-btn');
-  if (!btn) return;
-  const ring = document.getElementById('x-dwell-ring');
-  if (hovering) {
-    if (!xDwellStart) {
-      xDwellStart = Date.now();
-      btn.classList.add('dwell-active');
-      if (ring) ring.style.animation = `dwell-spin ${DWELL_MS}ms linear forwards`;
-      xDwellTimer = setTimeout(() => {
-        xDwellStart = null;
-        btn.classList.remove('dwell-active');
-        if (ring) ring.style.animation = 'none';
-        goBack();
-      }, DWELL_MS);
-    }
-  } else {
-    if (xDwellTimer) clearTimeout(xDwellTimer);
-    xDwellTimer = null;
-    xDwellStart = null;
-    if (btn) btn.classList.remove('dwell-active');
-    if (ring) ring.style.animation = 'none';
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-//  CAMERA + AUDIO UNLOCK
-// ═══════════════════════════════════════════════════════════
-async function startCamera() {
-  // ── Unlock audio AND video playback in this synchronous user-gesture frame ──
-  unlockAudio();
-  // Pre-warm the player video element with a silent blob so iOS marks it
-  // as "user-gesture activated" — then real src swaps work with audio on.
-  prewarmVideoElement();
-
-  try {
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:'user', width:{ideal:1280}, height:{ideal:720} },
-      audio:false
-    });
-    const vid = document.getElementById('cam-video');
-    vid.srcObject = camStream;
-    document.getElementById('cam-bg').style.display = 'block';
-
-    showScreen('menu-screen', false);
-    navStack.length = 0;
-
-    initPose();
-
-  } catch(e) {
-    alert('Camera permission denied. Please allow camera access and reload.');
-  }
-}
-
-function unlockAudio() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-  try {
-    const ac = new (window.AudioContext || window.webkitAudioContext)();
-    const buf = ac.createBuffer(1,1,22050);
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    src.connect(ac.destination);
-    src.start(0);
-    ac.resume().then(() => ac.close());
-  } catch(e) {}
-}
-
-function prewarmVideoElement() {
-  // Call .play() synchronously inside the gesture — iOS tags this element
-  // as allowed to play with audio for the session lifetime.
-  const vid = document.getElementById('player-vid');
-  try {
-    vid.muted = false;
-    vid.volume = 1.0;
-    // A tiny silent data URI so play() has something to chew on
-    vid.src = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAAhtZGF0';
-    const p = vid.play();
-    if (p) p.catch(()=>{});
-    // Immediately pause and clear — we just needed the gesture binding
-    setTimeout(() => { vid.pause(); vid.src = ''; vid.load(); }, 100);
-  } catch(e) {}
-}
-
-// ═══════════════════════════════════════════════════════════
-//  NAVIGATION: sections
-// ═══════════════════════════════════════════════════════════
-const SECTIONS = {
-  videos: {
-    label: 'Videos 🎬',
-    items: []  // populated dynamically from server
-  },
-  music: {
-    label: 'Music 🎵',
-    items: [
-      { icon:'🎹', label:'Piano',  action:()=>comingSoon('Piano') },
-      { icon:'🎸', label:'Guitar', action:()=>comingSoon('Guitar') },
-      { icon:'🥁', label:'Drums',  action:()=>comingSoon('Drums') },
-    ]
-  },
-  games: {
-    label: 'Games 🎮',
-    items: [
-      { icon:'👗', label:'Dress Up',  action:()=>comingSoon('Dress Up') },
-      { icon:'🏀', label:'Ballz!',    action:()=>startBallz() },
-      { icon:'🏹', label:'Catapult',  action:()=>comingSoon('Catapult') },
-    ]
-  },
-  other: {
-    label: 'Other ⭐',
-    items: [
-      { icon:'⚙️', label:'Settings', action:()=>comingSoon('Settings') },
-    ]
-  }
-};
-
-function comingSoon(name) {
-  alert(name + ' — coming soon!');
-}
-
-async function openSection(key) {
-  const sec = SECTIONS[key];
-  document.getElementById('sub-title').textContent = sec.label;
-  const grid = document.getElementById('sub-grid');
-  grid.innerHTML = '';
-
-  if (key === 'videos') {
-    // Load video list from server
-    await loadVideoTiles(grid);
-  } else {
-    sec.items.forEach(item => {
-      const tile = makeTile(item.icon, item.label, item.action);
-      grid.appendChild(tile);
-    });
-  }
-
-  showScreen('sub-screen');
-}
-
-function makeTile(icon, label, action) {
-  const d = document.createElement('div');
-  d.className = 'menu-tile';
-  d.innerHTML = `<span class="tile-icon">${icon}</span><span class="tile-label">${label}</span>`;
-  d.onclick = action;
-  return d;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  VIDEO LOADING
-// ═══════════════════════════════════════════════════════════
-async function loadVideoTiles(grid) {
-  try {
-    const res = await fetch('/handy/api/videos.php');
-    const videos = await res.json();
-    if (!videos.length) {
-      grid.innerHTML = '<p style="color:var(--muted);padding:20px">No videos yet.</p>';
-      return;
-    }
-    videos.forEach(v => {
-      const tile = makeTile('▶️', v.title || v.filename, () => playVideo(v.url));
-      grid.appendChild(tile);
-    });
-  } catch(e) {
-    // Fallback tiles for testing
-    grid.innerHTML = '<p style="color:var(--muted);padding:20px;grid-column:span 2">Could not load videos.</p>';
-  }
-}
-
-function playVideo(url) {
-  const vid = document.getElementById('player-vid');
-  const bar = document.getElementById('video-loading-bar');
-  const loadBar = document.getElementById('video-loading');
-
-  vid.pause();
-  vid.removeAttribute('src');
-  vid.load();
-  bar.style.width = '0%';
-  loadBar.style.display = 'block';
-
-  showScreen('video-player');
-
-  vid.muted = false;
-  vid.volume = 1.0;
-  vid.src = url;
-
-  vid.onprogress = () => {
-    if (vid.buffered.length && vid.duration) {
-      const pct = (vid.buffered.end(0) / vid.duration) * 100;
-      bar.style.width = pct + '%';
-      if (pct >= 99) loadBar.style.display = 'none';
-    }
-  };
-  vid.oncanplay = () => {
-    loadBar.style.display = 'none';
-    vid.play().catch(() => {
-      // Last resort: play muted if browser still blocks
-      vid.muted = true;
-      vid.play();
-    });
-  };
-  vid.load();
-}
-
-function stopVideo() {
-  const vid = document.getElementById('player-vid');
-  vid.pause();
-  vid.src = '';
-}
-
-// ═══════════════════════════════════════════════════════════
-//  MEDIAPIPE POSE
-// ═══════════════════════════════════════════════════════════
-function initPose() {
-  mpPose = new Pose({
-    locateFile:(f) => `https://unpkg.com/@mediapipe/pose@0.5.1675469404/${f}`
+  fullVideo.addEventListener('progress',onVideoProgress);
+  fullVideo.addEventListener('canplay',onVideoCanPlay,{once:true});
+  fullVideo.addEventListener('waiting',()=>{
+    videoLoadingEl.classList.add('show');
+    videoLoadingMsg.classList.add('show');
+    videoLoadingMsg.textContent='Buffering…';
   });
-  mpPose.setOptions({
-    modelComplexity:1,
-    smoothLandmarks:true,
-    enableSegmentation:false,
-    minDetectionConfidence:0.5,
-    minTrackingConfidence:0.5
+  fullVideo.addEventListener('playing',()=>{
+    videoLoadingEl.classList.remove('show');
+    videoLoadingMsg.classList.remove('show');
+    tapPrompt.style.display='none';
   });
-  mpPose.onResults(onPoseResults);
 
-  mpCamera = new Camera(document.getElementById('cam-video'), {
-    onFrame: async () => {
-      if (mpPose) await mpPose.send({ image: document.getElementById('cam-video') });
-    },
-    width:1280, height:720
+  // Show tap-to-play prompt — iOS needs a direct tap on video
+  tapPrompt.style.display='flex';
+
+  const el=videoOverlay;
+  if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
+function onVideoProgress(){
+  if(!fullVideo.duration) return;
+  try{
+    const buf=fullVideo.buffered;
+    if(buf.length>0){
+      const pct=Math.round((buf.end(buf.length-1)/fullVideo.duration)*100);
+      videoLoadingBar.style.width=pct+'%';
+    }
+  }catch(e){}
+}
+
+function onVideoCanPlay(){
+  videoLoadingEl.classList.remove('show');
+  videoLoadingMsg.classList.remove('show');
+  videoLoadingMsg.textContent='Starting…';
+  // Attempt autoplay — will succeed if audio already unlocked
+  fullVideo.play().then(()=>{
+    tapPrompt.style.display='none';
+  }).catch(()=>{
+    // Autoplay blocked — show tap prompt (common on iOS)
+    tapPrompt.style.display='flex';
   });
-  mpCamera.start();
 }
 
-function onPoseResults(results) {
-  poseResults = results;
-  // Check hand dwell over X button
-  checkHandOverX(results);
+// Tap prompt — direct user gesture on the video element
+tapPrompt.addEventListener('click', ()=>{
+  tapPrompt.style.display='none';
+  fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
+});
+tapPrompt.addEventListener('touchend', (e)=>{
+  e.preventDefault();
+  tapPrompt.style.display='none';
+  fullVideo.play().catch(e=>dbgErr('Tap play: '+e.message));
+}, {passive:false});
+
+function closeVideoPlayer(){
+  fullVideo.removeEventListener('progress',onVideoProgress);
+  fullVideo.pause(); fullVideo.removeAttribute('src'); fullVideo.load();
+  videoOverlay.classList.remove('show');
+  videoLoadingEl.classList.remove('show');
+  videoLoadingMsg.classList.remove('show');
+  tapPrompt.style.display='none';
+  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  else if(document.webkitFullscreenElement) document.webkitExitFullscreen();
 }
-
-function checkHandOverX(results) {
-  const btn = document.getElementById('x-btn');
-  if (!btn || !results.poseLandmarks) { triggerXDwell(false); return; }
-
-  const r = btn.getBoundingClientRect();
-  const cx = r.left + r.width/2;
-  const cy = r.top  + r.height/2;
-  const sw = window.innerWidth, sh = window.innerHeight;
-
-  // Check wrist landmarks (15=left wrist, 16=right wrist)
-  const wrists = [15,16];
-  let hovering = false;
-  for (const idx of wrists) {
-    const lm = results.poseLandmarks[idx];
-    if (!lm) continue;
-    // Mirror X because cam is mirrored
-    const lx = (1 - lm.x) * sw;
-    const ly = lm.y * sh;
-    const dist = Math.hypot(lx - cx, ly - cy);
-    if (dist < r.width * 0.75) { hovering = true; break; }
-  }
-  triggerXDwell(hovering);
-}
+fullVideo.addEventListener('ended',closeVideoPlayer);
+closeVideoBtn.addEventListener('click',closeVideoPlayer);
 
 // ═══════════════════════════════════════════════════════════
-//  BALLZ! GAME
+//  BALLZ! GAME  — MediaPipe Pose + full body outline + sounds
 // ═══════════════════════════════════════════════════════════
-const ballzCanvas = document.getElementById('ballz-canvas');
-const bctx = ballzCanvas.getContext('2d');
+const BC = ballzCanvas;
+const bctx = BC.getContext('2d');
 let ballzRunning = false;
 let ballzRaf = null;
+let ballzPose = null;
 
-let posePoints   = [];
-let prevPosePts  = [];
+let posePoints = [];
+let prevPosePts = [];
 let poseDetected = false;
 
+// Exit button dwell
+let exitDwell = 0;
+let exitDwellStart = null;
+const EXIT_DWELL_MS = 1500;
+
+// Web Audio
+let ballzAudioCtx = null;
+function getBallzAudio(){
+  if(!ballzAudioCtx) ballzAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return ballzAudioCtx;
+}
+function playBounceSound(pitch=1,vol=0.3){
+  try{const ac=getBallzAudio(),osc=ac.createOscillator(),gain=ac.createGain();osc.connect(gain);gain.connect(ac.destination);osc.type='sine';osc.frequency.setValueAtTime(200*pitch,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(80*pitch,ac.currentTime+0.18);gain.gain.setValueAtTime(vol,ac.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.22);osc.start();osc.stop(ac.currentTime+0.22);}catch(e){}
+}
+function playBallBounceSound(){
+  try{const ac=getBallzAudio(),osc=ac.createOscillator(),gain=ac.createGain();osc.connect(gain);gain.connect(ac.destination);osc.type='triangle';osc.frequency.setValueAtTime(440+Math.random()*300,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(200,ac.currentTime+0.12);gain.gain.setValueAtTime(0.18,ac.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.14);osc.start();osc.stop(ac.currentTime+0.14);}catch(e){}
+}
+function playWallSound(){
+  try{const ac=getBallzAudio(),buf=ac.createBuffer(1,ac.sampleRate*0.06,ac.sampleRate),data=buf.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*Math.exp(-i/(ac.sampleRate*0.03));const src=ac.createBufferSource(),gain=ac.createGain(),filt=ac.createBiquadFilter();filt.type='bandpass';filt.frequency.value=500;filt.Q.value=2;src.buffer=buf;src.connect(filt);filt.connect(gain);gain.connect(ac.destination);gain.gain.setValueAtTime(0.12,ac.currentTime);src.start();src.stop(ac.currentTime+0.06);}catch(e){}
+}
+function playSpawnSound(){
+  try{const ac=getBallzAudio(),osc=ac.createOscillator(),gain=ac.createGain();osc.connect(gain);gain.connect(ac.destination);osc.type='sawtooth';osc.frequency.setValueAtTime(100,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(600,ac.currentTime+0.15);gain.gain.setValueAtTime(0.12,ac.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.2);osc.start();osc.stop(ac.currentTime+0.2);}catch(e){}
+}
+
 const BALL_COLORS = ['#ff6584','#ffd166','#06d6a0','#4ecdc4','#6c63ff','#ff9f43','#a29bfe'];
-const MAX_BALLS   = 5;
 
-// Pose skeleton segments for collision (pairs of landmark indices)
-const BODY_SEGS = [
-  [11,12],[11,13],[13,15],[12,14],[14,16], // arms
-  [11,23],[12,24],[23,24],                 // torso
-  [23,25],[25,27],[24,26],[26,28],         // legs
-  [27,29],[28,30],[29,31],[30,32],         // ankles/feet
+// MediaPipe Pose landmark indices (33 total)
+const POSE_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8],[9,10],
+  [11,12],[11,23],[12,24],[23,24],
+  [11,13],[13,15],[15,17],[15,19],[15,21],[17,19],
+  [12,14],[14,16],[16,18],[16,20],[16,22],[18,20],
+  [23,25],[25,27],[27,29],[27,31],[29,31],
+  [24,26],[26,28],[28,30],[28,32],[30,32],
 ];
-// Radius per segment index (thicker for torso, normal for limbs)
-const SEG_RADIUS = (a,b) => {
-  const torso = new Set([11,12,23,24]);
-  if (torso.has(a) && torso.has(b)) return 38;
-  return 22;
-};
+const THICK_SEGS = new Set(['11,12','11,23','12,24','23,24','9,10']);
 
-let balls = [];
-let audioCtx = null;
-
-function ensureAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-}
-
-function playBounce(freq=220, vol=0.25) {
-  try {
-    ensureAudioCtx();
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.connect(g); g.connect(audioCtx.destination);
-    o.type='sine'; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(freq*0.5, audioCtx.currentTime+0.12);
-    g.gain.setValueAtTime(vol, audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.2);
-    o.start(); o.stop(audioCtx.currentTime+0.22);
-  } catch(e){}
-}
-
-function spawnBall() {
-  const r = window.innerWidth * 0.045 + Math.random()*window.innerWidth*0.02;
-  return {
-    x: r + Math.random()*(window.innerWidth - 2*r),
-    y: -r*2,
-    vx: (Math.random()-0.5)*4,
-    vy: 2 + Math.random()*2,
-    r,
-    color: BALL_COLORS[Math.floor(Math.random()*BALL_COLORS.length)],
-    trail: []
-  };
-}
-
-function startBallz() {
-  showScreen('ballz-screen');
-  ballzCanvas.width  = window.innerWidth;
-  ballzCanvas.height = window.innerHeight;
-  balls = [];
-  for (let i=0;i<3;i++) balls.push(spawnBall());
-  ballzRunning = true;
-  ballzLoop();
-}
-
-function stopBallz() {
-  ballzRunning = false;
-  if (ballzRaf) { cancelAnimationFrame(ballzRaf); ballzRaf=null; }
-  bctx.clearRect(0,0,ballzCanvas.width,ballzCanvas.height);
-}
-
-function mpToCanvas(lm) {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const vidAspect = 16/9;
-  const scrAspect = vw/vh;
-  let sx,sy,sw,sh;
-  if (scrAspect > vidAspect) {
-    sw = vw; sh = vw/vidAspect;
-    sx = 0;  sy = (vh-sh)/2;
-  } else {
-    sh = vh; sw = vh*vidAspect;
-    sy = 0;  sx = (vw-sw)/2;
-  }
-  // Mirror X
-  return { x:(1-lm.x)*sw + sx, y:lm.y*sh + sy };
-}
-
-function updatePosePoints() {
-  prevPosePts = posePoints.map(p=>({...p}));
-  if (!poseResults || !poseResults.poseLandmarks) { poseDetected=false; return; }
-  poseDetected = true;
-  posePoints = poseResults.poseLandmarks.map((lm,i) => {
-    const c = mpToCanvas(lm);
-    const prev = prevPosePts[i] || c;
-    return { x:c.x, y:c.y, vx:c.x-prev.x, vy:c.y-prev.y };
-  });
-}
-
-function drawBodyOutline() {
-  if (!poseDetected || posePoints.length < 33) return;
-  // Draw thick glow segments
-  for (const [a,b] of BODY_SEGS) {
-    if (!posePoints[a]||!posePoints[b]) continue;
-    const pa=posePoints[a], pb=posePoints[b];
-    const r = SEG_RADIUS(a,b);
-    // Glow
-    bctx.save();
-    bctx.strokeStyle='rgba(108,99,255,0.35)';
-    bctx.lineWidth=r*2+10;
-    bctx.lineCap='round';
-    bctx.shadowColor='#6c63ff';
-    bctx.shadowBlur=18;
-    bctx.beginPath();
-    bctx.moveTo(pa.x,pa.y);
-    bctx.lineTo(pb.x,pb.y);
-    bctx.stroke();
-    // Core
-    bctx.strokeStyle='rgba(180,170,255,0.55)';
-    bctx.lineWidth=r*2;
-    bctx.shadowBlur=0;
-    bctx.stroke();
-    bctx.restore();
-  }
-  // Head
-  const nose = posePoints[0];
-  if (nose) {
-    const ls=posePoints[11],rs=posePoints[12];
-    const headR = ls&&rs ? Math.hypot(ls.x-rs.x,ls.y-rs.y)*0.28 : 36;
-    bctx.save();
-    bctx.beginPath();
-    bctx.arc(nose.x,nose.y,headR,0,Math.PI*2);
-    bctx.fillStyle='rgba(108,99,255,0.22)';
-    bctx.shadowColor='#6c63ff';
-    bctx.shadowBlur=16;
-    bctx.fill();
-    bctx.strokeStyle='rgba(180,170,255,0.5)';
-    bctx.lineWidth=3;
-    bctx.stroke();
-    bctx.restore();
-  }
-}
-
-function collideBallBody(ball) {
-  if (!poseDetected) return;
-  const W=window.innerWidth, H=window.innerHeight;
-
-  // Head collision
-  const nose=posePoints[0];
-  if (nose) {
-    const ls=posePoints[11],rs=posePoints[12];
-    const hr = ls&&rs ? Math.hypot(ls.x-rs.x,ls.y-rs.y)*0.28 : 36;
-    const bodyR = hr + ball.r;
-    const dx=ball.x-nose.x, dy=ball.y-nose.y;
-    const dist=Math.hypot(dx,dy);
-    if (dist<bodyR && dist>0) {
-      const nx=dx/dist, ny=dy/dist;
-      const dot=ball.vx*nx+ball.vy*ny;
-      const bvx=nose.vx||0, bvy=nose.vy||0;
-      const bDot=bvx*nx+bvy*ny;
-      const impulse=Math.max(0, -(dot-bDot)*1.5);
-      ball.vx+=nx*impulse; ball.vy+=ny*impulse;
-      ball.x=nose.x+nx*(bodyR+1); ball.y=nose.y+ny*(bodyR+1);
-      playBounce(300+Math.random()*200);
-    }
+class Ball {
+  constructor(W,H){
+    this.r  = 40 + Math.random()*20;
+    this.x  = this.r*2 + Math.random()*(W-this.r*4);
+    this.y  = -this.r;
+    this.vx = (Math.random()-0.5)*5;
+    this.vy = 1.5 + Math.random()*2;
+    this.color = BALL_COLORS[Math.floor(Math.random()*BALL_COLORS.length)];
+    this.trail = [];
+    this.lastHitTime = 0;
+    this.lastWallTime = 0;
+    this.lastBallTime = 0;
   }
 
-  // Segment collisions
-  for (const [a,b] of BODY_SEGS) {
-    const pa=posePoints[a],pb=posePoints[b];
-    if (!pa||!pb) continue;
-    const segR = SEG_RADIUS(a,b) + ball.r;
-    // Closest point on segment to ball
-    const ABx=pb.x-pa.x,ABy=pb.y-pa.y;
-    const t=Math.max(0,Math.min(1,((ball.x-pa.x)*ABx+(ball.y-pa.y)*ABy)/(ABx*ABx+ABy*ABy+1e-9)));
-    const cx=pa.x+t*ABx, cy=pa.y+t*ABy;
-    const dx=ball.x-cx, dy=ball.y-cy;
-    const dist=Math.hypot(dx,dy);
-    if (dist<segR && dist>0) {
-      const nx=dx/dist, ny=dy/dist;
-      const dot=ball.vx*nx+ball.vy*ny;
-      const bvx=(pa.vx+pb.vx)*0.5||0, bvy=(pa.vy+pb.vy)*0.5||0;
-      const bDot=bvx*nx+bvy*ny;
-      const impulse=Math.max(0,-(dot-bDot)*1.4);
-      ball.vx+=nx*impulse; ball.vy+=ny*impulse;
-      ball.x=cx+nx*(segR+1); ball.y=cy+ny*(segR+1);
-      playBounce(180+Math.random()*160, 0.18);
-    }
-  }
-}
+  update(W,H,segs,allBalls){
+    this.trail.push({x:this.x,y:this.y});
+    if(this.trail.length>12) this.trail.shift();
+    this.vy += 0.3;
+    const spd=Math.hypot(this.vx,this.vy);
+    if(spd>22){this.vx*=22/spd;this.vy*=22/spd;}
+    this.x+=this.vx; this.y+=this.vy;
 
-function collideBallBall() {
-  for (let i=0;i<balls.length;i++) {
-    for (let j=i+1;j<balls.length;j++) {
-      const a=balls[i], b=balls[j];
-      const dx=b.x-a.x, dy=b.y-a.y;
-      const dist=Math.hypot(dx,dy);
-      const minD=a.r+b.r;
-      if (dist<minD && dist>0) {
-        const nx=dx/dist, ny=dy/dist;
-        const dvx=a.vx-b.vx, dvy=a.vy-b.vy;
-        const dot=dvx*nx+dvy*ny;
-        if (dot>0) {
-          a.vx-=dot*nx; a.vy-=dot*ny;
-          b.vx+=dot*nx; b.vy+=dot*ny;
+    // Walls
+    const now=performance.now();
+    if(this.x-this.r<0){this.x=this.r;this.vx=Math.abs(this.vx)*0.82;if(now-this.lastWallTime>200){playWallSound();this.lastWallTime=now;}}
+    if(this.x+this.r>W){this.x=W-this.r;this.vx=-Math.abs(this.vx)*0.82;if(now-this.lastWallTime>200){playWallSound();this.lastWallTime=now;}}
+    if(this.y+this.r>H){this.y=H-this.r;this.vy=-Math.abs(this.vy)*0.75;this.vx*=0.88;if(now-this.lastWallTime>200){playWallSound();this.lastWallTime=now;}}
+
+    // Body collisions
+    if(now-this.lastHitTime>80){
+      for(const seg of segs){
+        if(this._collideSeg(seg)){
+          this.lastHitTime=now;
+          playBounceSound(0.8+Math.random()*0.8, 0.25);
+          break;
         }
-        const overlap=(minD-dist)/2;
-        a.x-=nx*overlap; a.y-=ny*overlap;
-        b.x+=nx*overlap; b.y+=ny*overlap;
-        playBounce(400+Math.random()*200, 0.12);
+      }
+    }
+
+    // Ball-ball collisions
+    for(const other of allBalls){
+      if(other===this) continue;
+      const dx=other.x-this.x, dy=other.y-this.y;
+      const dist=Math.hypot(dx,dy);
+      const minDist=this.r+other.r;
+      if(dist<minDist&&dist>0.5){
+        // Separate
+        const nx=dx/dist, ny=dy/dist;
+        const overlap=(minDist-dist)/2;
+        this.x  -= nx*overlap; this.y  -= ny*overlap;
+        other.x += nx*overlap; other.y += ny*overlap;
+        // Exchange velocity components along collision normal
+        const dvx=this.vx-other.vx, dvy=this.vy-other.vy;
+        const dot=dvx*nx+dvy*ny;
+        if(dot>0){
+          this.vx  -= dot*nx*0.9; this.vy  -= dot*ny*0.9;
+          other.vx += dot*nx*0.9; other.vy += dot*ny*0.9;
+          if(now-this.lastBallTime>150){playBallBounceSound();this.lastBallTime=now;}
+        }
       }
     }
   }
+
+  _collideSeg(seg){
+    const dx=seg.x2-seg.x1,dy=seg.y2-seg.y1;
+    const len2=dx*dx+dy*dy; if(len2<1) return false;
+    let t=((this.x-seg.x1)*dx+(this.y-seg.y1)*dy)/len2;
+    t=Math.max(0,Math.min(1,t));
+    const cx=seg.x1+t*dx,cy=seg.y1+t*dy;
+    const ex=this.x-cx,ey=this.y-cy;
+    const dist=Math.hypot(ex,ey);
+    const threshold=this.r+seg.thickness;
+    if(dist<threshold&&dist>0.5){
+      const nx=ex/dist,ny=ey/dist;
+      this.x=cx+nx*(threshold+1); this.y=cy+ny*(threshold+1);
+      const dot=this.vx*nx+this.vy*ny;
+      this.vx-=2*dot*nx; this.vy-=2*dot*ny;
+      this.vx+=seg.vx*1.6; this.vy+=seg.vy*1.6;
+      this.vx*=0.87; this.vy*=0.87;
+      return true;
+    }
+    return false;
+  }
+
+  draw(ctx){
+    for(let i=0;i<this.trail.length;i++){
+      ctx.save(); ctx.globalAlpha=(i/this.trail.length)*0.2;
+      ctx.fillStyle=this.color;
+      ctx.beginPath(); ctx.arc(this.trail[i].x,this.trail[i].y,this.r*(i/this.trail.length)*.6,0,Math.PI*2);
+      ctx.fill(); ctx.restore();
+    }
+    ctx.save();
+    ctx.shadowColor=this.color; ctx.shadowBlur=28;
+    const g=ctx.createRadialGradient(this.x-this.r*.32,this.y-this.r*.32,this.r*.08,this.x,this.y,this.r);
+    g.addColorStop(0,'rgba(255,255,255,.95)');
+    g.addColorStop(0.25,this.color);
+    g.addColorStop(1,this.color+'55');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
 }
 
-function ballzLoop() {
-  if (!ballzRunning) return;
-  ballzRaf = requestAnimationFrame(ballzLoop);
+let balls=[];
+let ballSpawnTimer=0;
+const MAX_BALLS=5;
 
-  ballzCanvas.width  = window.innerWidth;
-  ballzCanvas.height = window.innerHeight;
-  bctx.clearRect(0,0,ballzCanvas.width,ballzCanvas.height);
+// ── Coordinate mapping ──────────────────────────────────────
+function mpToCanvas(nx, ny, W, H){
+  const vidW=ballzCam.videoWidth||640, vidH=ballzCam.videoHeight||480;
+  const vidAR=vidW/vidH, canAR=W/H;
+  let scale, offX=0, offY=0;
+  if(canAR>vidAR){ scale=W/vidW; offY=(H-vidH*scale)/2; }
+  else            { scale=H/vidH; offX=(W-vidW*scale)/2; }
+  return { x:(1-nx)*vidW*scale+offX, y:ny*vidH*scale+offY };
+}
 
-  updatePosePoints();
-  drawBodyOutline();
-
-  const W=window.innerWidth, H=window.innerHeight;
-  const GRAVITY=0.25, DAMPEN=0.72;
-
-  // Spawn new balls if needed
-  while(balls.length < MAX_BALLS) {
-    if (Math.random()<0.008) balls.push(spawnBall());
-    else break;
+// ── Pose results ─────────────────────────────────────────────
+function onBallzPoseResults(results){
+  prevPosePts=[...posePoints];
+  const W=BC.width, H=BC.height;
+  if(results.poseLandmarks&&results.poseLandmarks.length>0){
+    poseDetected=true;
+    posePoints=results.poseLandmarks.map((lm,i)=>{
+      const {x,y}=mpToCanvas(lm.x,lm.y,W,H);
+      const prev=prevPosePts[i];
+      const vx=prev?(x-prev.x)*0.55+prev.vx*0.45:0;
+      const vy=prev?(y-prev.y)*0.55+prev.vy*0.45:0;
+      return{x,y,vx,vy,vis:lm.visibility||1};
+    });
+  } else {
+    poseDetected=false; posePoints=[];
   }
+}
 
-  for (const ball of balls) {
-    ball.vy += GRAVITY;
-    ball.x  += ball.vx;
-    ball.y  += ball.vy;
+// ── Body outline (inflated convex hull per body region) ──────
+function drawBodyOutline(W, H){
+  if(posePoints.length<25) return [];
+  const p=posePoints;
+  const get=(i)=>p[i]&&(p[i].vis||1)>0.3?p[i]:null;
 
-    // Trail
-    ball.trail.push({x:ball.x,y:ball.y});
-    if (ball.trail.length>8) ball.trail.shift();
+  // Outline colour
+  const outlineColor='rgba(0,229,160,0.55)';
+  const fillColor='rgba(0,229,160,0.08)';
+  const inflate=32; // how much to expand beyond skeleton
 
-    // Walls
-    if (ball.x-ball.r<0)  { ball.x=ball.r;  ball.vx=Math.abs(ball.vx)*DAMPEN+0.5; playBounce(250,0.15); }
-    if (ball.x+ball.r>W)  { ball.x=W-ball.r; ball.vx=-Math.abs(ball.vx)*DAMPEN-0.5; playBounce(250,0.15); }
-    if (ball.y+ball.r>H)  { ball.y=H-ball.r; ball.vy=-Math.abs(ball.vy)*DAMPEN-0.5; playBounce(200,0.15); }
-    if (ball.y-ball.r<0)  { ball.y=ball.r;   ball.vy=Math.abs(ball.vy)*DAMPEN+0.5; playBounce(200,0.15); }
+  // We build outlines for: head, torso, each arm, each leg
+  // Each outline is a set of points we inflate outward then draw as a smooth path
 
-    // Speed cap
-    const spd=Math.hypot(ball.vx,ball.vy);
-    if (spd>28) { ball.vx=ball.vx/spd*28; ball.vy=ball.vy/spd*28; }
-
-    collideBallBody(ball);
-  }
-
-  collideBallBall();
-
-  // Draw trails + balls
-  for (const ball of balls) {
-    // Trail
-    for (let i=0;i<ball.trail.length;i++) {
-      const alpha=(i/ball.trail.length)*0.3;
-      const sz=ball.r*(i/ball.trail.length)*0.6;
-      bctx.beginPath();
-      bctx.arc(ball.trail[i].x,ball.trail[i].y,sz,0,Math.PI*2);
-      bctx.fillStyle=ball.color.replace(')',`,${alpha})`).replace('#','rgba(').replace(/([0-9a-f]{2})/gi,h=>parseInt(h,16)+',').replace(/,$/,'');
-      bctx.fill();
-    }
-    // Glow
-    bctx.save();
-    bctx.shadowColor=ball.color;
-    bctx.shadowBlur=18;
+  function drawInflatedPath(pts, rad){
+    if(!pts||pts.length<2) return;
+    // Compute centroid
+    const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length;
+    const cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;
     bctx.beginPath();
-    bctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-    const grad=bctx.createRadialGradient(ball.x-ball.r*.3,ball.y-ball.r*.3,ball.r*.1,ball.x,ball.y,ball.r);
-    grad.addColorStop(0,'rgba(255,255,255,0.7)');
-    grad.addColorStop(0.3,ball.color);
-    grad.addColorStop(1,ball.color+'99');
-    bctx.fillStyle=grad;
-    bctx.fill();
+    pts.forEach((pt,i)=>{
+      const dx=pt.x-cx, dy=pt.y-cy;
+      const len=Math.hypot(dx,dy)||1;
+      const ox=pt.x+dx/len*rad, oy=pt.y+dy/len*rad;
+      if(i===0) bctx.moveTo(ox,oy); else bctx.lineTo(ox,oy);
+    });
+    bctx.closePath();
+  }
+
+  function drawCapsule(p1, p2, r){
+    if(!p1||!p2) return;
+    const dx=p2.x-p1.x, dy=p2.y-p1.y;
+    const len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len, ny=dx/len;
+    bctx.beginPath();
+    bctx.arc(p1.x,p1.y,r,-Math.atan2(dx,dy)+Math.PI/2,-Math.atan2(dx,dy)-Math.PI/2,true);
+    bctx.arc(p2.x,p2.y,r,-Math.atan2(dx,dy)-Math.PI/2,-Math.atan2(dx,dy)+Math.PI/2,true);
+    bctx.closePath();
+  }
+
+  // Collect all outline shapes as collision areas too
+  const outlineSegs=[];
+
+  bctx.save();
+  bctx.strokeStyle=outlineColor;
+  bctx.fillStyle=fillColor;
+  bctx.lineWidth=3;
+  bctx.shadowColor='#00e5a0'; bctx.shadowBlur=14;
+  bctx.lineCap='round'; bctx.lineJoin='round';
+
+  const LIMB_R=22; // arms/legs radius
+  const TORSO_R=36;
+  const HEAD_R = (()=>{
+    if(p[11]&&p[12]) return Math.max(28,Math.min(70,Math.hypot(p[12].x-p[11].x,p[12].y-p[11].y)*0.22));
+    return 40;
+  })();
+
+  // Head
+  const nose=get(0);
+  if(nose){
+    bctx.beginPath(); bctx.arc(nose.x,nose.y,HEAD_R,0,Math.PI*2);
+    bctx.fill(); bctx.stroke();
+    // Head collision circles
+    for(let a=0;a<6;a++){
+      const ang=a*Math.PI/3;
+      outlineSegs.push({x1:nose.x,y1:nose.y,x2:nose.x+Math.cos(ang)*HEAD_R,y2:nose.y+Math.sin(ang)*HEAD_R,vx:nose.vx,vy:nose.vy,thickness:HEAD_R});
+    }
+  }
+
+  // Torso
+  const ls=get(11),rs=get(12),lh=get(23),rh=get(24);
+  if(ls&&rs&&lh&&rh){
+    bctx.beginPath();
+    bctx.moveTo(ls.x-TORSO_R,ls.y);
+    bctx.lineTo(rs.x+TORSO_R,rs.y);
+    bctx.lineTo(rh.x+TORSO_R,rh.y);
+    bctx.lineTo(lh.x-TORSO_R,lh.y);
+    bctx.closePath();
+    bctx.fill(); bctx.stroke();
+    // Torso collision
+    [[ls,rs],[ls,lh],[rs,rh],[lh,rh]].forEach(([a,b])=>{
+      outlineSegs.push({x1:a.x,y1:a.y,x2:b.x,y2:b.y,vx:(a.vx+b.vx)/2,vy:(a.vy+b.vy)/2,thickness:TORSO_R});
+    });
+  }
+
+  // Arms
+  [[11,13,15],[12,14,16]].forEach(([sh,el,wr])=>{
+    const ps=get(sh),pe=get(el),pw=get(wr);
+    if(ps&&pe){ drawCapsule(ps,pe,LIMB_R); bctx.fill(); bctx.stroke(); outlineSegs.push({x1:ps.x,y1:ps.y,x2:pe.x,y2:pe.y,vx:(ps.vx+pe.vx)/2,vy:(ps.vy+pe.vy)/2,thickness:LIMB_R}); }
+    if(pe&&pw){ drawCapsule(pe,pw,LIMB_R-4); bctx.fill(); bctx.stroke(); outlineSegs.push({x1:pe.x,y1:pe.y,x2:pw.x,y2:pw.y,vx:(pe.vx+pw.vx)/2,vy:(pe.vy+pw.vy)/2,thickness:LIMB_R-4}); }
+  });
+
+  // Legs
+  [[23,25,27],[24,26,28]].forEach(([hip,kn,ank])=>{
+    const ph=get(hip),pk=get(kn),pa=get(ank);
+    if(ph&&pk){ drawCapsule(ph,pk,LIMB_R+4); bctx.fill(); bctx.stroke(); outlineSegs.push({x1:ph.x,y1:ph.y,x2:pk.x,y2:pk.y,vx:(ph.vx+pk.vx)/2,vy:(ph.vy+pk.vy)/2,thickness:LIMB_R+4}); }
+    if(pk&&pa){ drawCapsule(pk,pa,LIMB_R); bctx.fill(); bctx.stroke(); outlineSegs.push({x1:pk.x,y1:pk.y,x2:pa.x,y2:pa.y,vx:(pk.vx+pa.vx)/2,vy:(pk.vy+pa.vy)/2,thickness:LIMB_R}); }
+  });
+
+  // Hands/feet as circles
+  [[15,14],[16,13],[27,12],[28,12]].forEach(([idx,_])=>{
+    const pt=get(idx); if(!pt) return;
+    bctx.beginPath(); bctx.arc(pt.x,pt.y,LIMB_R-6,0,Math.PI*2); bctx.fill(); bctx.stroke();
+    outlineSegs.push({x1:pt.x-LIMB_R,y1:pt.y,x2:pt.x+LIMB_R,y2:pt.y,vx:pt.vx,vy:pt.vy,thickness:LIMB_R-6});
+  });
+
+  bctx.restore();
+  return outlineSegs;
+}
+
+function buildBodySegments(){
+  if(posePoints.length<25) return [];
+  const segs=[];
+  for(const [a,b] of POSE_CONNECTIONS){
+    if(a>=posePoints.length||b>=posePoints.length) continue;
+    const pa=posePoints[a],pb=posePoints[b];
+    if((pa.vis||1)<0.3||(pb.vis||1)<0.3) continue;
+    const key=`${Math.min(a,b)},${Math.max(a,b)}`;
+    const thickness=THICK_SEGS.has(key)?30:16;
+    segs.push({x1:pa.x,y1:pa.y,x2:pb.x,y2:pb.y,vx:(pa.vx+pb.vx)/2,vy:(pa.vy+pb.vy)/2,thickness});
+  }
+  return segs;
+}
+
+// ── Start / Stop ─────────────────────────────────────────────
+async function startBallz(){
+  dbgOk('Starting Ballz! (Pose mode)');
+  ballzOverlay.classList.add('show');
+  BC.width=window.innerWidth;
+  BC.height=window.innerHeight;
+
+  if(state.camStream){
+    ballzCam.srcObject=state.camStream;
+    await ballzCam.play().catch(()=>{});
+  }
+
+  balls=[]; ballSpawnTimer=0; posePoints=[]; poseDetected=false;
+  ballzRunning=true;
+
+  // Lazy-load MediaPipe Pose
+  if(!ballzPose){
+    dbgOk('Loading MediaPipe Pose…');
+    // Load Pose script dynamically
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://unpkg.com/@mediapipe/pose@0.5.1675469404/pose.js';
+      s.crossOrigin='anonymous';
+      s.onload=res; s.onerror=rej;
+      document.head.appendChild(s);
+    }).catch(e=>dbgErr('Pose script load: '+e));
+
+    if(typeof Pose==='undefined'){
+      dbgErr('Pose not available, falling back to hands');
+      startBallzHandsFallback(); return;
+    }
+
+    ballzPose=new Pose({
+      locateFile:f=>`https://unpkg.com/@mediapipe/pose@0.5.1675469404/${f}`
+    });
+    ballzPose.setOptions({
+      modelComplexity:0,
+      smoothLandmarks:true,
+      enableSegmentation:false,
+      minDetectionConfidence:0.5,
+      minTrackingConfidence:0.5,
+    });
+    ballzPose.onResults(onBallzPoseResults);
+    await ballzPose.initialize().catch(e=>dbgErr('Pose init: '+e));
+    dbgOk('Pose ready');
+  }
+
+  // Frame loop
+  let fc=0;
+  async function poseLoop(){
+    if(!ballzRunning) return;
+    fc++;
+    if(fc%2===0&&ballzCam.readyState>=2&&ballzPose){
+      await ballzPose.send({image:ballzCam}).catch(()=>{});
+    }
+    requestAnimationFrame(poseLoop);
+  }
+  poseLoop();
+  ballzLoop();
+}
+
+// Fallback if Pose fails — use Hands (original behaviour)
+async function startBallzHandsFallback(){
+  dbgWarn('Using Hands fallback');
+  // reuse main mpHands instance with 2-hand mode
+  if(mpHands){
+    mpHands.setOptions({maxNumHands:2,modelComplexity:0,minDetectionConfidence:.5,minTrackingConfidence:.4});
+    // Monkey-patch results to posePoints
+    const origOnResults=mpHands.onResults.bind(mpHands);
+    mpHands.onResults(results=>{
+      posePoints=[];
+      if(results.multiHandLandmarks){
+        for(const lm of results.multiHandLandmarks){
+          for(const pt of lm){
+            const{x,y}=mpToCanvas(pt.x,pt.y,BC.width,BC.height);
+            posePoints.push({x,y,vx:0,vy:0,vis:1});
+          }
+        }
+      }
+      poseDetected=posePoints.length>0;
+    });
+  }
+  ballzLoop();
+}
+
+function ballzLoop(){
+  if(!ballzRunning) return;
+  const W=BC.width, H=BC.height;
+  const now=performance.now();
+
+  bctx.clearRect(0,0,W,H);
+  bctx.fillStyle='rgba(0,0,0,0.08)';
+  bctx.fillRect(0,0,W,H);
+
+  // Spawn
+  ballSpawnTimer++;
+  if(balls.length<MAX_BALLS && ballSpawnTimer>90){
+    balls.push(new Ball(W,H));
+    ballSpawnTimer=0;
+    playSpawnSound();
+  }
+
+  // Draw body outline + get collision segs
+  const outlineSegs = poseDetected ? drawBodyOutline(W,H) : [];
+  const wireSegs    = buildBodySegments();
+  const allSegs     = [...outlineSegs, ...wireSegs];
+
+  // Update balls (pass all balls for ball-ball collision)
+  for(const ball of balls) ball.update(W,H,allSegs,balls);
+  for(const ball of balls) ball.draw(bctx);
+  balls=balls.filter(b=>b.y<H+b.r*3);
+
+  // ── Big exit button (3× size) with hand dwell ────────────
+  const BTN=120, PAD=16;
+  const bx=W-BTN-PAD, by=PAD;
+
+  // Check if any hand landmark is over exit button
+  const handLandmarks=[15,16,17,18,19,20,21,22]; // wrists + hands
+  let handOverExit=false;
+  for(const idx of handLandmarks){
+    const pt=posePoints[idx];
+    if(pt&&(pt.vis||1)>0.3){
+      if(pt.x>=bx&&pt.x<=bx+BTN&&pt.y>=by&&pt.y<=by+BTN){ handOverExit=true; break; }
+    }
+  }
+
+  if(handOverExit){
+    if(!exitDwellStart) exitDwellStart=now;
+    exitDwell=Math.min((now-exitDwellStart)/EXIT_DWELL_MS,1);
+    if(exitDwell>=1){ stopBallz(); return; }
+  } else {
+    exitDwellStart=null;
+    exitDwell=Math.max(0,exitDwell-0.04);
+  }
+
+  // Draw exit button
+  bctx.save();
+  bctx.shadowColor='rgba(220,50,50,.7)'; bctx.shadowBlur=20;
+  bctx.fillStyle=`rgba(180,30,30,${0.75+exitDwell*0.2})`;
+  bctx.strokeStyle=`rgba(255,255,255,${0.4+exitDwell*0.4})`;
+  bctx.lineWidth=3;
+  bctx.beginPath(); bctx.roundRect(bx,by,BTN,BTN,20); bctx.fill(); bctx.stroke();
+  bctx.fillStyle='#fff'; bctx.font=`900 ${BTN*.55}px Arial,sans-serif`;
+  bctx.textAlign='center'; bctx.textBaseline='middle';
+  bctx.shadowColor='rgba(0,0,0,.5)'; bctx.shadowBlur=4;
+  bctx.fillText('✕',bx+BTN/2,by+BTN/2);
+  // Dwell ring
+  if(exitDwell>0){
+    bctx.strokeStyle='#ff6584'; bctx.lineWidth=6; bctx.lineCap='round';
+    bctx.shadowColor='#ff6584'; bctx.shadowBlur=16;
+    bctx.beginPath();
+    bctx.arc(bx+BTN/2,by+BTN/2,BTN/2+8,-Math.PI/2,-Math.PI/2+Math.PI*2*exitDwell);
+    bctx.stroke();
+  }
+  bctx.restore();
+
+  // No body hint
+  if(!poseDetected){
+    bctx.save();
+    bctx.fillStyle='rgba(255,255,255,.6)';
+    bctx.font='700 24px Segoe UI,system-ui,sans-serif';
+    bctx.textAlign='center'; bctx.textBaseline='middle';
+    bctx.shadowColor='rgba(0,0,0,.8)'; bctx.shadowBlur=8;
+    bctx.fillText('Step back so your full body is visible!',W/2,H/2);
     bctx.restore();
   }
+
+  ballzRaf=requestAnimationFrame(ballzLoop);
 }
+
+function stopBallz(){
+  ballzRunning=false;
+  if(ballzRaf) cancelAnimationFrame(ballzRaf);
+  balls=[]; posePoints=[]; exitDwell=0; exitDwellStart=null;
+  ballzOverlay.classList.remove('show');
+}
+
+ballzClose.addEventListener('click',stopBallz);
+
+// Resize Ballz canvas on orientation change
+window.addEventListener('resize',()=>{
+  if(ballzRunning){ BC.width=window.innerWidth; BC.height=window.innerHeight; }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  MEDIAPIPE (main UI)
+// ═══════════════════════════════════════════════════════════
+let mpHands=null;
+
+async function initHandTracking(){
+  loadMsg.textContent='Loading hand tracker…';
+  dbg('Loading MediaPipe…');
+  mpHands=new Hands({locateFile:f=>`https://unpkg.com/@mediapipe/hands@0.4.1646424915/${f}`});
+  mpHands.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:.6,minTrackingConfidence:.5});
+  mpHands.onResults(onHandResults);
+  try{await mpHands.initialize();dbgOk('MediaPipe ready');}
+  catch(e){dbgErr('MP fail: '+e.message);loadDiv.classList.add('gone');enableMouseFallback();return;}
+  await startCamera();
+}
+
+function onHandResults(results){
+  if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
+    const lm=results.multiHandLandmarks[0];
+    const px=(lm[0].x+lm[9].x)/2,py=(lm[0].y+lm[9].y)/2;
+    if(!state.handVisible) dbgOk(`Hand (${px.toFixed(2)},${py.toFixed(2)})`);
+    state.cx=.5-(px-.5)*CFG.sensitivity;
+    state.cy=.5+(py-.5)*CFG.sensitivity;
+    state.handVisible=true;
+    handDot.className='sdot ok';
+    document.getElementById('hand-lbl').textContent='Hand ✓';
+  }else{
+    state.handVisible=false;
+    handDot.className='sdot warn';
+    document.getElementById('hand-lbl').textContent='Hand…';
+  }
+  state.sx+=(state.cx-state.sx)*CFG.smoothing;
+  state.sy+=(state.cy-state.sy)*CFG.smoothing;
+  state.sx=Math.max(.02,Math.min(.98,state.sx));
+  state.sy=Math.max(.02,Math.min(.98,state.sy));
+}
+
+async function startCamera(){
+  loadMsg.textContent='Starting camera…';
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+    state.camStream=stream; // Save for Ballz reuse
+    camVideo.srcObject=stream;
+    await new Promise(res=>camVideo.onloadedmetadata=res);
+    camVideo.play(); dbgOk('Camera on');
+    camDot.className='sdot ok';
+    document.getElementById('cam-lbl').textContent='Camera ✓';
+    (async function frameLoop(){
+      if(camVideo.readyState>=2&&mpHands) await mpHands.send({image:camVideo});
+      requestAnimationFrame(frameLoop);
+    })();
+    loadDiv.classList.add('gone');
+  }catch(e){
+    dbgErr('Camera: '+e.name+' – '+e.message);
+    loadMsg.textContent='Camera denied – mouse fallback';
+    setTimeout(()=>loadDiv.classList.add('gone'),2000);
+    enableMouseFallback();
+  }
+}
+
+function enableMouseFallback(){
+  canvas.addEventListener('mousemove',e=>{
+    const r=canvas.getBoundingClientRect();
+    state.cx=state.sx=(e.clientX-r.left)/r.width;
+    state.cy=state.sy=(e.clientY-r.top)/r.height;
+    state.handVisible=true;
+  });
+  handDot.className='sdot ok';
+  document.getElementById('hand-lbl').textContent='Mouse';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MIC
+// ═══════════════════════════════════════════════════════════
+async function toggleMic(){
+  if(!CFG.micOn){
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({audio:true});
+      state.audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      state.analyser=state.audioCtx.createAnalyser(); state.analyser.fftSize=256;
+      state.audioCtx.createMediaStreamSource(s).connect(state.analyser);
+      state.micStream=s; CFG.micOn=true;
+      micDot.className='sdot ok'; micBtn.classList.add('on'); micBtn.textContent='🎤 ON';
+      startSoundLoop();
+    }catch(e){flashMsg('Mic denied');}
+  }else{
+    state.micStream?.getTracks().forEach(t=>t.stop());
+    state.audioCtx?.close(); state.analyser=null; CFG.micOn=false;
+    micDot.className='sdot'; micBtn.classList.remove('on'); micBtn.textContent='🎤 Mic';
+  }
+}
+function startSoundLoop(){
+  const buf=new Float32Array(128);
+  (function loop(){
+    if(!CFG.micOn||!state.analyser) return;
+    state.analyser.getFloatTimeDomainData(buf);
+    let rms=0; for(const v of buf)rms+=v*v; rms=Math.sqrt(rms/buf.length);
+    if(rms>CFG.soundThreshold){
+      const now=performance.now();
+      if(now-state.lastSoundTime>CFG.soundCooldownMs){state.lastSoundTime=now;onSound();}
+    }
+    requestAnimationFrame(loop);
+  })();
+}
+function onSound(){
+  soundFlash.style.background='rgba(0,229,160,.12)'; soundFlash.style.opacity='1';
+  setTimeout(()=>soundFlash.style.opacity='0',150);
+  if(state.hoveredTile){
+    const t=getScreenTiles().find(t=>t.id===state.hoveredTile);
+    if(t) selectTile(t);
+  }
+}
+
+function togglePreview(){
+  CFG.previewOn=!CFG.previewOn;
+  camPreview.classList.toggle('show',CFG.previewOn);
+  previewBtn.classList.toggle('on',CFG.previewOn);
+}
+
+function flashMsg(msg){
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(108,99,255,.95);color:#fff;padding:14px 32px;border-radius:40px;font-size:1.1rem;font-weight:700;z-index:300;pointer-events:none;white-space:nowrap;animation:fadeUp .3s ease forwards;box-shadow:0 4px 24px rgba(0,0,0,.5);';
+  el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2500);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════════════════
+startBtn.addEventListener('click',async()=>{
+  permScreen.style.display='none';
+  statusBar.classList.add('show');
+  mainDiv.classList.add('show');
+  resize(); window.addEventListener('resize',resize);
+  dbgOk('App started');
+  await loadSettings();
+  await loadVideoLibrary();
+  requestAnimationFrame(render);
+  await initHandTracking();
+});
+micBtn.addEventListener('click',toggleMic);
+previewBtn.addEventListener('click',togglePreview);
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();onSound();}});
 </script>
 
 </body>
