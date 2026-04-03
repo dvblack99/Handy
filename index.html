@@ -363,7 +363,8 @@ function getScreenTiles() {
       id:'vid_'+i, label:'', sublabel:v.name, color:TILE_COLORS[i%TILE_COLORS.length],
       action:'video', src:v.src, vidId:v.id,
     }));
-    return layoutGrid([...vTiles],W,H,2,true);
+    // Back tile as first tile in grid, like other pages
+    return layoutGrid([backTile(),...vTiles],W,H,2,true);
   }
 
   if(state.screen==='music') return layoutGrid([
@@ -392,11 +393,11 @@ function backTile(target) {
     action:target?'nav':'back',target:target||'menu'};
 }
 
-// Fixed X button — top-right corner, shown on all non-menu screens
+// Fixed X button — top-right corner, shown on non-menu, non-video screens
 function getBackButtonTile() {
-  if(state.screen==='menu') return null;
+  if(state.screen==='menu' || state.screen==='videos') return null;
   const W=canvas.width, H=canvas.height;
-  const sz=Math.min(W,H)*0.22; // ~22% of shortest dimension
+  const sz=Math.min(W,H)*0.22;
   const pad=16;
   return {
     id:'fixed_back', label:'✕', sublabel:null,
@@ -464,24 +465,19 @@ async function loadVideoLibrary(){
 async function loadServerThumb(video){
   if(!video.thumb) return;
   try{
+    // Use an Image element — works everywhere including older iOS
     const img=new Image();
-    // No crossOrigin needed for same-origin thumbs
     await new Promise((res,rej)=>{
-      img.onload=res;
-      img.onerror=rej;
-      // 5 second timeout
-      const t=setTimeout(()=>rej(new Error('timeout')),5000);
+      const t=setTimeout(()=>rej(new Error('timeout')),8000);
       img.onload=()=>{clearTimeout(t);res();};
+      img.onerror=()=>{clearTimeout(t);rej(new Error('img error'));};
       img.src=video.thumb;
     });
-    const c=document.createElement('canvas'); c.width=320; c.height=180;
-    c.getContext('2d').drawImage(img,0,0,320,180);
-    const blob=await new Promise(res=>c.toBlob(res,'image/jpeg',.85));
-    state.thumbCache[video.src]=await createImageBitmap(blob);
+    // Store the img element itself — draw it directly in render
+    state.thumbCache[video.src]=img;
     dbgOk('Thumb: '+video.name);
   }catch(e){
     dbgWarn('Thumb skip: '+video.name+' ('+e.message+')');
-    // No fallback to generateThumb — too slow on mobile
   }
 }
 
@@ -799,34 +795,48 @@ document.addEventListener('mouseup',  ()=>{ audioUnlocked=true; }, {once:true});
 
 function playVideo(src,name){
   if(!src){flashMsg(`No file for "${name}" yet`);return;}
-  fullVideo.pause(); fullVideo.removeAttribute('src'); fullVideo.load();
+
+  // Clean up
+  fullVideo.pause();
+  fullVideo.removeEventListener('progress',onVideoProgress);
+  fullVideo.removeEventListener('canplay',onVideoCanPlay);
+  fullVideo.removeEventListener('waiting',onVideoWaiting);
+  fullVideo.removeEventListener('playing',onVideoPlaying);
+
   fullVideo.src=src;
-  fullVideo.volume = SECTION_CFG.videos.volume ?? 1.0;
-  fullVideo.muted = false;
+  fullVideo.volume=SECTION_CFG.videos.volume??1.0;
+  fullVideo.muted=false;
+  fullVideo.preload='auto';
+  tapPrompt.style.display='none';
+
   videoOverlay.classList.add('show');
   videoLoadingEl.classList.add('show');
   videoLoadingMsg.classList.add('show');
   videoLoadingBar.style.width='0%';
   videoLoadingMsg.textContent='Loading video…';
-  tapPrompt.style.display='none'; // hidden unless autoplay blocked
 
   fullVideo.addEventListener('progress',onVideoProgress);
   fullVideo.addEventListener('canplay',onVideoCanPlay,{once:true});
-  fullVideo.addEventListener('waiting',()=>{
-    videoLoadingEl.classList.add('show');
-    videoLoadingMsg.classList.add('show');
-    videoLoadingMsg.textContent='Buffering…';
-  });
-  fullVideo.addEventListener('playing',()=>{
-    videoLoadingEl.classList.remove('show');
-    videoLoadingMsg.classList.remove('show');
-    tapPrompt.style.display='none';
-  });
+  fullVideo.addEventListener('waiting',onVideoWaiting);
+  fullVideo.addEventListener('playing',onVideoPlaying);
 
-  const el=videoOverlay;
-  if(el.requestFullscreen) el.requestFullscreen().catch(()=>{});
-  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  // Don't call fullVideo.load() — setting src triggers it automatically
+  // Fullscreen
+  videoOverlay.requestFullscreen?.().catch(()=>{});
+  if(!document.fullscreenElement) videoOverlay.webkitRequestFullscreen?.();
   startVideoOverlay();
+}
+
+function onVideoWaiting(){
+  videoLoadingEl.classList.add('show');
+  videoLoadingMsg.classList.add('show');
+  videoLoadingMsg.textContent='Buffering…';
+}
+
+function onVideoPlaying(){
+  videoLoadingEl.classList.remove('show');
+  videoLoadingMsg.classList.remove('show');
+  tapPrompt.style.display='none';
 }
 
 function onVideoProgress(){
@@ -865,15 +875,19 @@ tapPrompt.addEventListener('touchend', (e)=>{
 
 function closeVideoPlayer(){
   fullVideo.removeEventListener('progress',onVideoProgress);
-  fullVideo.pause(); fullVideo.removeAttribute('src'); fullVideo.load();
+  fullVideo.removeEventListener('canplay',onVideoCanPlay);
+  fullVideo.removeEventListener('waiting',onVideoWaiting);
+  fullVideo.removeEventListener('playing',onVideoPlaying);
+  fullVideo.pause();
+  fullVideo.removeAttribute('src');
+  fullVideo.load(); // Reset after removing src
   videoOverlay.classList.remove('show');
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
   tapPrompt.style.display='none';
   if(videoOverlayRaf){ cancelAnimationFrame(videoOverlayRaf); videoOverlayRaf=null; }
   vocCtx.clearRect(0,0,videoOverlayCanvas.width,videoOverlayCanvas.height);
-  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
-  else if(document.webkitFullscreenElement) document.webkitExitFullscreen();
+  document.exitFullscreen?.().catch(()=>{});
 }
 fullVideo.addEventListener('ended',closeVideoPlayer);
 closeVideoBtn.addEventListener('click',closeVideoPlayer);
