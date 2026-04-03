@@ -829,6 +829,12 @@ function playVideo(src,name){
   fullVideo.addEventListener('waiting',onVideoWaiting);
   fullVideo.addEventListener('playing',onVideoPlaying);
   fullVideo.addEventListener('ended',closeVideoPlayer,{once:true});
+  fullVideo.addEventListener('error',e=>{
+    const err=fullVideo.error;
+    dbgErr('Video error: code='+(err?err.code:'?')+' msg='+(err?err.message:'?'));
+    videoLoadingMsg.textContent='Error loading video';
+    clearTimeout(fullVideo._loadTimeout);
+  },{once:true});
 
   // Timeout fallback — if canplay never fires after 8s, show tap prompt
   clearTimeout(fullVideo._loadTimeout);
@@ -846,20 +852,22 @@ function playVideo(src,name){
 }
 
 function onVideoCanPlay(){
+function onVideoCanPlay(){
   clearTimeout(fullVideo._loadTimeout);
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
-  dbgOk('canplay fired');
-  // Play muted — guaranteed to work
+  dbgOk('canplay fired — readyState:'+fullVideo.readyState);
   fullVideo.muted=true;
   fullVideo.play().then(()=>{
-    dbgOk('playing muted — unmuting');
-    // Short delay then unmute — iOS needs play to be established first
-    setTimeout(()=>{ fullVideo.muted=false; fullVideo.volume=1.0; },200);
+    dbgOk('playback started, unmuting');
+    fullVideo.muted=false;
+    fullVideo.volume=1.0;
     tapPrompt.style.display='none';
   }).catch(e=>{
-    dbgErr('play() failed: '+e.message);
+    dbgErr('play() blocked: '+e.message);
     tapPrompt.style.display='flex';
+    videoLoadingEl.classList.remove('show');
+    videoLoadingMsg.classList.remove('show');
   });
 }
 
@@ -873,8 +881,9 @@ function onVideoPlaying(){
   videoLoadingEl.classList.remove('show');
   videoLoadingMsg.classList.remove('show');
   tapPrompt.style.display='none';
-  // Ensure unmuted when playing
-  setTimeout(()=>{ fullVideo.muted=false; fullVideo.volume=1.0; },100);
+  fullVideo.muted=false;
+  fullVideo.volume=1.0;
+  dbgOk('playing — muted:'+fullVideo.muted+' vol:'+fullVideo.volume);
 }
 
 function onVideoProgress(){
