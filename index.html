@@ -36,9 +36,10 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 #app-root {
   position: fixed;
   top: 0; left: 0;
-  /* default landscape — width/height set by JS */
+  /* Initial size covers full screen — applyRotation refines this */
+  width: 100vw;
+  height: 100vh;
   transform-origin: top left;
-  /* transition smoothed by JS, not CSS, to avoid flicker */
 }
 
 /* PERMISSION */
@@ -262,6 +263,7 @@ const state = {
   scrollY:0,scrollTarget:0,
   videos:[],thumbCache:{},
   camStream:null,
+  videoOpen:false,  // true while video overlay is showing — pauses main render logic
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -831,8 +833,11 @@ function render(ts){
   const backBtn = getBackButtonTile();
   if(backBtn) drawFixedBackButton(backBtn);
 
-  updateScroll();
-  updateDwell(ts, tiles, backBtn);
+  // Don't process dwell/scroll while video overlay is open
+  if(!state.videoOpen){
+    updateScroll();
+    updateDwell(ts, tiles, backBtn);
+  }
   requestAnimationFrame(render);
 }
 
@@ -952,11 +957,22 @@ let audioUnlocked = false;
 function vstat(msg){ const el=document.getElementById('video-status'); if(el) el.textContent=msg; dbgOk(msg); }
 function vstatErr(msg){ const el=document.getElementById('video-status'); if(el){ el.textContent=msg; el.style.color='#ff6584'; } dbgErr(msg); }
 
+// Detect iOS — only iOS requires the tap-to-play-with-sound pattern
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 // Track the 'ended' listener so we can remove it before re-adding
 let _videoEndedHandler = null;
 
 function playVideo(src, name){
   if(!src){ flashMsg('No file yet'); return; }
+
+  state.videoOpen = true;
+  // Reset hand tracking state so cursor doesn't freeze at last position
+  state.handVisible = false;
+  state.hoveredTile = null;
+  state.dwellStart = null;
+  state.dwellProgress = 0;
 
   // STOP CAMERA — iOS cannot run camera + video decode simultaneously
   camVideo.pause();
@@ -981,58 +997,66 @@ function playVideo(src, name){
   fullVideo.load(); // flush previous resource
 
   videoOverlay.classList.add('show');
-  tapPrompt.style.display = 'flex';
-  const tapNameEl = document.getElementById('tap-prompt-name');
-  if(tapNameEl) tapNameEl.textContent = name;
   videoLoadingEl.classList.remove('show');
-  vstat('Loading…');
 
-  // Do NOT set muted=false yet — iOS audio requires the play() call itself
-  // to originate from a direct user gesture (the tap). We set up the src
-  // here so the browser can start buffering, but we do NOT call play().
-  // The tap handler calls play() with muted=false directly.
-  fullVideo.muted = true;        // buffer silently
-  fullVideo.volume = 1.0;
   fullVideo.playsInline = true;
   fullVideo.preload = 'auto';
-  // Do NOT set autoplay — we want the tap to be the play gesture
   fullVideo.removeAttribute('autoplay');
-  fullVideo.src = src;
-  // Do NOT call fullVideo.load() here — setting src already starts the fetch.
-  // An extra load() call can reset the network state on iOS and cause stalls.
-
+  fullVideo.volume = 1.0;
+  fullVideo.onwaiting = ()=>{ videoLoadingEl.classList.add('show'); };
+  fullVideo.onplaying = ()=>{ videoLoadingEl.classList.remove('show'); };
   fullVideo.onerror = ()=>{
     const c = fullVideo.error ? fullVideo.error.code : '?';
     vstatErr('Load error code='+c+' — check file format/path');
   };
-
-  fullVideo.onloadedmetadata = ()=>{
-    vstat('Ready — tap ▶️ for sound');
-  };
-
-  // Show a spinner while buffering after the user starts playback
-  fullVideo.onwaiting = ()=>{ videoLoadingEl.classList.add('show'); };
-  fullVideo.onplaying = ()=>{ videoLoadingEl.classList.remove('show'); };
+  fullVideo.onloadedmetadata = ()=>{ vstat('Loaded — ready'); };
 
   _videoEndedHandler = ()=>closeVideoPlayer();
   fullVideo.addEventListener('ended', _videoEndedHandler);
 
+  if(isIOS){
+    // iOS: must start muted, then user tap triggers play() with sound.
+    // The tap gesture is what unlocks audio — play() called from rAF won't work.
+    const tapNameEl = document.getElementById('tap-prompt-name');
+    if(tapNameEl) tapNameEl.textContent = name;
+    tapPrompt.style.display = 'flex';
+    fullVideo.muted = true;
+    fullVideo.src = src;
+    // Don't call .load() — setting src starts the fetch automatically.
+    vstat('Loading… tap ▶️ for sound');
+  } else {
+    // Desktop: play immediately with sound — no tap needed.
+    tapPrompt.style.display = 'none';
+    fullVideo.muted = false;
+    fullVideo.src = src;
+    fullVideo.oncanplay = ()=>{
+      fullVideo.oncanplay = null;
+      fullVideo.play().then(()=>vstat('Playing ▶️')).catch(e=>{
+        vstatErr('Autoplay blocked: '+e.message+' — click to play');
+        // Browser blocked autoplay — show the tap prompt as fallback
+        const tapNameEl = document.getElementById('tap-prompt-name');
+        if(tapNameEl) tapNameEl.textContent = name;
+        tapPrompt.style.display = 'flex';
+      });
+    };
+    vstat('Loading…');
+  }
+
   startVideoOverlay();
 }
 
-// Tap anywhere on the overlay (or hand-dwell triggers this path via tapPrompt click)
+// Tap/click anywhere on overlay — iOS uses this to start play with sound,
+// desktop uses it as a fallback if autoplay was blocked.
 videoOverlay.addEventListener('click', ()=>{
   if(tapPrompt.style.display !== 'none'){
     tapPrompt.style.display = 'none';
-    // This click IS the user gesture — play with audio from the start.
-    // Setting muted=false before play() is the correct iOS pattern.
     fullVideo.muted = false;
     fullVideo.volume = 1.0;
     fullVideo.play().then(()=>{
       vstat('Playing ▶️');
     }).catch(e=>{
       vstatErr('Play failed: '+e.message);
-      // Fallback: try muted play so the video at least shows
+      // Last resort: muted play so at least the video shows
       fullVideo.muted = true;
       fullVideo.play().catch(()=>{});
     });
@@ -1045,6 +1069,14 @@ function onVideoPlaying(){ videoLoadingEl.classList.remove('show'); }
 function onVideoProgress(){}
 
 function closeVideoPlayer(){
+  state.videoOpen = false;
+  // Reset hand state so cursor starts fresh at centre
+  state.handVisible = false;
+  state.hoveredTile = null;
+  state.dwellStart = null;
+  state.dwellProgress = 0;
+  state.cx = .5; state.cy = .5; state.sx = .5; state.sy = .5;
+
   fullVideo.pause();
   if(_videoEndedHandler){
     fullVideo.removeEventListener('ended', _videoEndedHandler);
@@ -1654,7 +1686,11 @@ async function startCamera(){
     camDot.className='sdot ok';
     document.getElementById('cam-lbl').textContent='Camera ✓';
     (async function frameLoop(){
-      if(camVideo.readyState>=2&&mpHands) await mpHands.send({image:camVideo});
+      // Don't feed frames to MediaPipe while video is playing — camera may be stopped
+      // and we don't want stale hand detection locking the cursor
+      if(!state.videoOpen && camVideo.readyState>=2 && mpHands){
+        await mpHands.send({image:camVideo});
+      }
       requestAnimationFrame(frameLoop);
     })();
     loadDiv.classList.add('gone');
@@ -1731,6 +1767,14 @@ function flashMsg(msg){
   el.textContent=msg; document.getElementById('app-root').appendChild(el); setTimeout(()=>el.remove(),2500);
 }
 
+// ── Initial rotation + listen for changes from the start ──────
+// Must run immediately so permission screen fills the screen correctly on iPhone.
+// applyRotation() is safe to call before start because it only touches CSS/canvas sizes.
+applyRotation();
+window.addEventListener('resize', ()=>applyRotation());
+screen.orientation?.addEventListener('change', ()=>setTimeout(applyRotation, 50));
+window.addEventListener('orientationchange', ()=>setTimeout(applyRotation, 50));
+
 // ═══════════════════════════════════════════════════════════
 //  START
 // ═══════════════════════════════════════════════════════════
@@ -1738,11 +1782,7 @@ startBtn.addEventListener('click',async()=>{
   permScreen.style.display='none';
   statusBar.classList.add('show');
   mainDiv.classList.add('show');
-  resize(); 
-  window.addEventListener('resize', resize);
-  // Also listen for orientation changes — fires before resize on some iOS versions
-  screen.orientation?.addEventListener('change', ()=>setTimeout(resize, 50));
-  window.addEventListener('orientationchange', ()=>setTimeout(resize, 50));
+  applyRotation(); // re-run now that status bar is visible (height changes)
   dbgOk('App started');
   await loadSettings();
   await loadVideoLibrary();
