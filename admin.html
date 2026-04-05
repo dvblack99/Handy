@@ -692,7 +692,7 @@ async function refreshLibrary(){
   const listEl=document.getElementById('video-list');
   listEl.innerHTML='<div class="vl-empty">Loading…</div>';
   try{
-    const r=await fetch(INDEX_URL+'?t='+Date.now());
+    const r=await fetch(INDEX_URL+'?t='+Date.now(), {cache:'no-store'});
     // If 404 (no index yet) treat as empty library — don't try to parse HTML error page
     if(r.status===404){listEl.innerHTML='<div class="vl-empty">No videos yet.</div>';return;}
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -757,6 +757,9 @@ async function deleteVideo(filename, rowEl){
 
     if(deleted){
       showAlert('Deleted: '+filename,'ok');
+      // Remove the row immediately — don't wait for server refresh
+      rowEl.remove();
+      // Then refresh from server to sync any other changes
       await refreshLibrary();
       await checkServerLib();
     } else {
