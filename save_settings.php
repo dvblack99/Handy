@@ -20,7 +20,7 @@ if (!is_array($data)) { http_response_code(400); echo json_encode(['error'=>'Inv
 
 // Validate and sanitise each section
 $allowed = [
-  'global' => ['dwellMs','sensitivity','cursorRadius','smoothing','previewOn','micOn','camMount','scrollZone','scrollSpeed'],
+  'global' => ['dwellMs','sensitivity','cursorRadius','smoothing','previewOn','micOn','scrollZone','scrollSpeed'],
   'videos' => ['volume','autoplay','loop','dwellMs'],
   'music'  => ['volume','dwellMs'],
   'games'  => ['ballzMaxBalls','ballzGravity','ballzSpawnRate','dwellMs'],

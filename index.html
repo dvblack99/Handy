@@ -65,9 +65,9 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 .sbar-btn.on { border-color:var(--accent); color:var(--accent); }
 #sbar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
-/* MAIN */
-#main { position:relative; overflow:hidden; display:none; width:100%; flex:1; min-height:0; }
-#main.show { display:block; }
+/* MAIN — fills remaining height in app-root flex column */
+#main { position:relative; overflow:hidden; display:none; width:100%; height:calc(100% - 38px); flex:1; min-height:0; }
+#main.show { display:flex; }
 #ui-canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
 #cam-video { position:absolute; top:-9999px; left:-9999px; width:320px; height:240px; }
 
@@ -209,7 +209,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 // ═══════════════════════════════════════════════════════════
 const DEFAULTS = {
   global: { dwellMs:2000, sensitivity:1.8, smoothing:0.18, cursorRadius:40,
-            micOn:false, previewOn:false, camMount:0, scrollZone:0.14, scrollSpeed:5 },
+            micOn:false, previewOn:false, scrollZone:0.14, scrollSpeed:5 },
   videos: { autoplay:true, loop:false, volume:1.0 },
   music:  { volume:1.0 },
   games:  { ballzMaxBalls:5, ballzGravity:0.3, ballzSpawnRate:90 },
@@ -547,47 +547,55 @@ async function loadServerThumb(video){
 //  RENDER
 // ═══════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════
-//  ROTATION — lock app to landscape, rotate to match mount
+//  ROTATION — lock app to landscape, auto-compensate for phone angle
+//
+//  screen.orientation.angle tells us how many degrees clockwise the
+//  phone has been rotated from its natural orientation (portrait for iPhone).
+//
+//  angle  0  → portrait upright         → app rotates 90° CW
+//  angle  90 → landscape (home right)   → no rotation needed
+//  angle  180→ portrait upside-down     → app rotates 270° CW
+//  angle  270→ landscape (home left)    → app rotates 180°
+//
+//  The camera (front-facing) coordinate space rotates with the phone,
+//  so hand landmarks need the inverse rotation applied.
 // ═══════════════════════════════════════════════════════════
 const appRoot = document.getElementById('app-root');
 
+function getPhysicalAngle(){
+  // screen.orientation.angle is most reliable; fall back to deprecated window.orientation
+  if(screen.orientation && screen.orientation.angle !== undefined){
+    return screen.orientation.angle;
+  }
+  if(typeof window.orientation === 'number'){
+    // window.orientation uses opposite sign convention on some devices; normalise
+    return ((window.orientation % 360) + 360) % 360;
+  }
+  // Can't detect — assume upright portrait (0)
+  return 0;
+}
+
 function applyRotation(){
-  // Physical screen dimensions
   const sw = window.innerWidth;
   const sh = window.innerHeight;
 
-  // The app always renders in landscape.
-  // appW = the landscape width, appH = the landscape height.
-  // When phone is portrait (sw < sh), we rotate 90° or 270°, and swap w/h.
-  const mount = CFG.camMount || 0; // 0, 90, 180, 270
+  // Determine the visual rotation we need to apply to the app-root div
+  // so that the rendered content is always landscape on the TV/HDMI output.
+  const angle = getPhysicalAngle();
 
-  // Determine if phone is currently portrait
-  const phonePortrait = sw < sh;
-
-  // App logical size is always landscape
-  const appW = phonePortrait ? sh : sw;
-  const appH = phonePortrait ? sw : sh;
-
-  // Scale to fit screen (in case of non-square rotation)
-  const scale = phonePortrait ? (sw / sh) : 1;
-
+  // At angle 90 or 270 the phone is already landscape — no rotation needed.
+  // At angle 0 or 180 the phone is portrait — rotate app 90° or 270° to make it landscape.
   let deg = 0;
-  if(phonePortrait){
-    // Phone in portrait: need to rotate app 90° or 270° to fill landscape
-    // camMount 0   → phone portrait, cam top=physical top   → rotate app 90° CW  (deg=90)
-    // camMount 90  → phone portrait, cam top=physical right → rotate app 0° (already handled)
-    // camMount 180 → phone portrait, cam top=physical bot   → rotate app 270° CW (deg=270)
-    // camMount 270 → phone portrait, cam top=physical left  → rotate app 180°
-    // Default portrait-without-mount: rotate 90
-    deg = 90;
-    if(mount === 180) deg = 270;
-    else if(mount === 270) deg = 180;
-  } else {
-    // Phone in landscape already
-    if(mount === 180) deg = 180;
-  }
+  if(angle === 0)   deg = 90;   // portrait upright  → rotate app 90° CW
+  if(angle === 90)  deg = 0;    // landscape normal  → no change
+  if(angle === 180) deg = 270;  // portrait flipped  → rotate app 270° CW
+  if(angle === 270) deg = 180;  // landscape flipped → rotate app 180°
 
-  // Apply transform: rotate from top-left origin, then shift to fill screen
+  // Logical (landscape) app dimensions after rotation
+  const appW = (deg === 90 || deg === 270) ? sh : sw;
+  const appH = (deg === 90 || deg === 270) ? sw : sh;
+
+  // Translate origin so the rotated box still fills the physical screen
   let tx = 0, ty = 0;
   if(deg === 90)  { tx = sw; ty = 0; }
   if(deg === 180) { tx = sw; ty = sh; }
@@ -597,23 +605,24 @@ function applyRotation(){
   appRoot.style.height = appH + 'px';
   appRoot.style.transform = `translate(${tx}px,${ty}px) rotate(${deg}deg)`;
 
-  // Resize the canvas to the logical (landscape) app dimensions
+  // Size canvases to the logical landscape dimensions
   canvas.width  = appW;
-  canvas.height = appH - 38; // minus status bar
+  canvas.height = Math.max(1, appH - 38); // minus status bar height
   prevCanvas.width  = 160;
   prevCanvas.height = 120;
 
-  // Resize video overlay canvas
   videoOverlayCanvas.width  = appW;
   videoOverlayCanvas.height = appH;
 
-  // Resize Ballz canvas if running
   if(typeof ballzRunning !== 'undefined' && ballzRunning){
     BC.width  = appW;
     BC.height = appH;
   }
 
-  dbg(`Rotation: mount=${mount}° phone=${phonePortrait?'portrait':'landscape'} app=${appW}×${appH} deg=${deg}`);
+  // Store for coordinate mapping in onHandResults
+  appRoot._appAngle = angle;
+
+  dbg(`Rotation: screen=${angle}° appDeg=${deg} logical=${appW}×${appH}`);
 }
 
 function resize(){ applyRotation(); }
@@ -799,22 +808,21 @@ function render(ts){
     ctx.restore();
   }
 
-  // Camera preview PiP — always show upright regardless of mount
+  // Camera preview PiP — always show upright regardless of phone angle
   if(CFG.previewOn&&camVideo.readyState>=2){
     prevCtx.save();
-    const mount = CFG.camMount || 0;
-    // For 90/270 the camera frame is portrait, so we swap draw dimensions
-    if(mount === 0){
-      prevCtx.scale(-1,1); prevCtx.drawImage(camVideo,-160,0,160,120);
-    } else if(mount === 90){
+    const angle = appRoot._appAngle || getPhysicalAngle();
+    if(angle === 0){        // portrait upright — cam is portrait, app is landscape
       prevCtx.translate(160,0); prevCtx.rotate(Math.PI/2);
       prevCtx.scale(-1,1); prevCtx.drawImage(camVideo,-120,0,120,160);
-    } else if(mount === 180){
-      prevCtx.translate(160,120); prevCtx.rotate(Math.PI);
-      prevCtx.drawImage(camVideo,0,0,-160,-120);
-    } else if(mount === 270){
+    } else if(angle === 90){ // landscape normal — standard mirror
+      prevCtx.scale(-1,1); prevCtx.drawImage(camVideo,-160,0,160,120);
+    } else if(angle === 180){ // portrait upside-down
       prevCtx.translate(0,120); prevCtx.rotate(-Math.PI/2);
       prevCtx.scale(-1,1); prevCtx.drawImage(camVideo,-120,0,120,160);
+    } else if(angle === 270){ // landscape flipped
+      prevCtx.translate(160,120); prevCtx.rotate(Math.PI);
+      prevCtx.drawImage(camVideo,0,0,-160,-120);
     }
     prevCtx.restore();
   }
@@ -1228,12 +1236,12 @@ const MAX_BALLS=5;
 
 // ── Coordinate mapping ──────────────────────────────────────
 function mpToCanvas(nx, ny, W, H){
-  // First apply camera mount rotation (same logic as hand tracking)
+  // Apply same rotation compensation as hand tracking
+  const angle = appRoot._appAngle || getPhysicalAngle();
   let rx = nx - 0.5, ry = ny - 0.5;
-  const mount = CFG.camMount || 0;
-  if(mount === 90)  { [rx, ry] = [ ry, -rx]; }
-  if(mount === 180) { [rx, ry] = [-rx, -ry]; }
-  if(mount === 270) { [rx, ry] = [-ry,  rx]; }
+  if(angle === 0)   { [rx, ry] = [ ry, -rx]; }
+  if(angle === 180) { [rx, ry] = [-ry,  rx]; }
+  if(angle === 270) { [rx, ry] = [-rx, -ry]; }
   nx = rx + 0.5; ny = ry + 0.5;
 
   const vidW=ballzCam.videoWidth||640, vidH=ballzCam.videoHeight||480;
@@ -1601,21 +1609,23 @@ function onHandResults(results){
     const lm=results.multiHandLandmarks[0];
     let px=(lm[0].x+lm[9].x)/2, py=(lm[0].y+lm[9].y)/2;
 
-    // Remap hand coordinates based on camera mount angle.
-    // MediaPipe gives (px,py) in [0,1] relative to the camera frame.
-    // The camera frame may be rotated relative to the app's landscape canvas,
-    // so we rotate the point around the centre (0.5, 0.5) accordingly.
-    // camMount = physical degrees the camera is rotated clockwise from the
-    // "camera top = app top-left" reference.
-    const mount = CFG.camMount || 0;
-    let rx = px - 0.5, ry = py - 0.5; // centre-relative
-    if(mount === 90)  { [rx, ry] = [ ry, -rx]; }  // rotate CCW 90 (cam rotated 90 CW)
-    if(mount === 180) { [rx, ry] = [-rx, -ry]; }  // flip both
-    if(mount === 270) { [rx, ry] = [-ry,  rx]; }  // rotate CW 90 (cam rotated 270 CW)
+    // Remap hand coordinates to match the app's logical landscape canvas.
+    // The front camera always captures relative to the physical phone orientation,
+    // so we rotate the landmark point by the same angle we applied to the UI.
+    // screen angle 0 (portrait)   → UI rotated 90°  → landmarks rotated 90° CCW
+    // screen angle 90 (landscape) → UI rotated 0°   → no change
+    // screen angle 180            → UI rotated 270° → landmarks rotated 270° CCW
+    // screen angle 270            → UI rotated 180° → landmarks rotated 180°
+    const angle = appRoot._appAngle || getPhysicalAngle();
+    let rx = px - 0.5, ry = py - 0.5;
+    if(angle === 0)   { [rx, ry] = [ ry, -rx]; } // 90° CCW
+    if(angle === 180) { [rx, ry] = [-ry,  rx]; } // 270° CCW
+    if(angle === 270) { [rx, ry] = [-rx, -ry]; } // 180°
+    // angle === 90: no change
     px = rx + 0.5; py = ry + 0.5;
 
-    if(!state.handVisible) dbgOk(`Hand (${px.toFixed(2)},${py.toFixed(2)})`);
-    // Mirror X (camera is front-facing, so right hand appears on left)
+    if(!state.handVisible) dbgOk(`Hand raw→remapped (${px.toFixed(2)},${py.toFixed(2)}) angle=${angle}`);
+    // Mirror X: front-facing camera flips left/right
     state.cx = .5 - (px - .5) * CFG.sensitivity;
     state.cy = .5 + (py - .5) * CFG.sensitivity;
     state.handVisible=true;
@@ -1728,7 +1738,11 @@ startBtn.addEventListener('click',async()=>{
   permScreen.style.display='none';
   statusBar.classList.add('show');
   mainDiv.classList.add('show');
-  resize(); window.addEventListener('resize',resize);
+  resize(); 
+  window.addEventListener('resize', resize);
+  // Also listen for orientation changes — fires before resize on some iOS versions
+  screen.orientation?.addEventListener('change', ()=>setTimeout(resize, 50));
+  window.addEventListener('orientationchange', ()=>setTimeout(resize, 50));
   dbgOk('App started');
   await loadSettings();
   await loadVideoLibrary();
