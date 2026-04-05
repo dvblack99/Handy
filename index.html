@@ -974,12 +974,14 @@ function playVideo(src, name){
   state.dwellStart = null;
   state.dwellProgress = 0;
 
-  // STOP CAMERA — iOS cannot run camera + video decode simultaneously
-  camVideo.pause();
-  if(state.camStream){
-    // Fully stop tracks (not just disable) so iOS frees the decode pipeline
-    state.camStream.getTracks().forEach(t=>t.stop());
-    state.camStream = null;
+  // On iOS: stop camera so it doesn't compete with video decode.
+  // On desktop: keep camera running so hand tracking works during video.
+  if(isIOS){
+    camVideo.pause();
+    if(state.camStream){
+      state.camStream.getTracks().forEach(t=>t.stop());
+      state.camStream = null;
+    }
   }
 
   // Tear down previous video completely
@@ -1094,18 +1096,22 @@ function closeVideoPlayer(){
   videoLoadingEl.classList.remove('show');
   if(videoOverlayRaf){ cancelAnimationFrame(videoOverlayRaf); videoOverlayRaf=null; }
   vocCtx.clearRect(0,0,videoOverlayCanvas.width,videoOverlayCanvas.height);
-  // RESTART CAMERA — tracks were fully stopped so we must re-request
-  dbgOk('Video closed — restarting camera…');
-  navigator.mediaDevices.getUserMedia({
-    video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false
-  }).then(stream=>{
-    state.camStream = stream;
-    camVideo.srcObject = stream;
-    camVideo.play().catch(()=>{});
-    dbgOk('Camera restarted');
-  }).catch(e=>{
-    dbgErr('Camera restart failed: '+e.message);
-  });
+  // Only restart camera if it was stopped (iOS path) — desktop keeps it running throughout
+  if(!state.camStream){
+    dbgOk('Video closed — restarting camera…');
+    navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false
+    }).then(stream=>{
+      state.camStream = stream;
+      camVideo.srcObject = stream;
+      camVideo.play().catch(()=>{});
+      dbgOk('Camera restarted');
+    }).catch(e=>{
+      dbgErr('Camera restart failed: '+e.message);
+    });
+  } else {
+    dbgOk('Video closed — camera was kept running');
+  }
 }
 closeVideoBtn.addEventListener('click', closeVideoPlayer);
 
@@ -1686,9 +1692,9 @@ async function startCamera(){
     camDot.className='sdot ok';
     document.getElementById('cam-lbl').textContent='Camera ✓';
     (async function frameLoop(){
-      // Don't feed frames to MediaPipe while video is playing — camera may be stopped
-      // and we don't want stale hand detection locking the cursor
-      if(!state.videoOpen && camVideo.readyState>=2 && mpHands){
+      // Keep feeding MediaPipe even during video playback —
+      // the video overlay needs hand tracking for its cursor and close-button dwell.
+      if(camVideo.readyState>=2 && mpHands){
         await mpHands.send({image:camVideo});
       }
       requestAnimationFrame(frameLoop);

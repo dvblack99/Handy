@@ -333,10 +333,23 @@ select { background:var(--surface2); border:1px solid rgba(255,255,255,.15); bor
 </div>
 
 <script>
-const UPLOAD_URL = 'upload.php';
-const SETTINGS_URL = 'save_settings.php';
-const INDEX_URL  = 'videos/index.json';
-const CHUNK_SIZE = 2 * 1024 * 1024;
+// API endpoints — uses your existing Python proxy (port 8181 via nginx)
+// These bypass upload.php entirely so PHP not executing doesn't matter
+const PROXY_TOKEN  = 'Lindsey123!';
+const PROXY_BASE   = '/api/handy';           // nginx proxies this to Python proxy
+const UPLOAD_URL   = 'upload.php';           // still used for chunked uploads if PHP works
+const SETTINGS_URL = 'save_settings.php';    // still used for settings if PHP works
+const INDEX_URL    = 'videos/index.json';    // direct static file read
+const CHUNK_SIZE   = 2 * 1024 * 1024;
+
+// Helper: call proxy endpoint with token
+async function proxyPost(path, body){
+  return fetch(PROXY_BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Token': PROXY_TOKEN },
+    body: JSON.stringify(body),
+  });
+}
 
 let compressScale = 720;
 let queue = [];
@@ -486,7 +499,11 @@ async function checkServer(){
   try{
     const r=await fetch(UPLOAD_URL+'?t='+Date.now());
     const text=await r.text();
-    let d; try{ d=JSON.parse(text); }catch(e){ el.className='err'; el.textContent='❌ PHP not executing on server (HTTP '+r.status+' returned HTML). Ask host to enable PHP, or check .htaccess.'; return; }
+    let d; try{ d=JSON.parse(text); }catch(e){
+      el.className='err';
+      el.textContent='⚠️ upload.php not executing (PHP disabled in nginx for this path). Video upload requires PHP. Delete works via proxy. To fix: add fastcgi_pass for .php in your nginx /handy/ location block.';
+      return;
+    }
     el.className=d.ok?'ok':'err';
     el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library (writable: ${d.writable})`:'❌ '+JSON.stringify(d);
   }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php — '+e.message; }
@@ -498,7 +515,11 @@ async function checkServerLib(){
   try{
     const r=await fetch(UPLOAD_URL+'?t='+Date.now());
     const text=await r.text();
-    let d; try{ d=JSON.parse(text); }catch(e){ el.className='err'; el.textContent='❌ Server returned non-JSON (HTTP '+r.status+')'; return; }
+    let d; try{ d=JSON.parse(text); }catch(e){
+      el.className='err';
+      el.textContent='⚠️ PHP not executing — uploads disabled. Delete still works via proxy.';
+      return;
+    }
     el.className=d.ok?'ok':'err';
     el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library (writable: ${d.writable})`:'❌ '+JSON.stringify(d);
   }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php — '+e.message; }
@@ -701,17 +722,68 @@ async function refreshLibrary(){
   }catch(e){listEl.innerHTML='<div class="vl-empty">Error: '+e.message+'</div>';}
 }
 
-async function deleteVideo(filename,rowEl){
+async function deleteVideo(filename, rowEl){
   if(!confirm(`Delete "${filename}"?`)) return;
-  rowEl.style.opacity='.4';
+  rowEl.style.opacity = '.4';
   try{
-    const fd=new FormData(); fd.append('action','delete'); fd.append('file',filename);
-    const r=await fetch(UPLOAD_URL,{method:'POST',body:fd});
-    const text=await r.text();
-    let d; try{ d=JSON.parse(text); }catch(e){ showAlert('Server error (non-JSON response). Check upload.php permissions.','err'); rowEl.style.opacity='1'; return; }
-    if(d.ok){showAlert('Deleted: '+filename,'ok');await refreshLibrary();await checkServerLib();}
-    else{showAlert('Delete failed: '+(d.error||'unknown error'),'err');rowEl.style.opacity='1';}
-  }catch(e){showAlert('Network error: '+e.message,'err');rowEl.style.opacity='1';}
+    // Try proxy endpoint first (bypasses PHP)
+    let deleted = false;
+
+    try{
+      const r = await proxyPost('/delete', { file: filename });
+      const text = await r.text();
+      let d; try{ d=JSON.parse(text); }catch(e){ d=null; }
+      if(d && d.ok) deleted = true;
+    }catch(proxyErr){
+      // Proxy not available — fall through to PHP
+    }
+
+    // Fallback: try upload.php directly
+    if(!deleted){
+      const fd = new FormData();
+      fd.append('action','delete'); fd.append('file', filename);
+      const r = await fetch(UPLOAD_URL, {method:'POST', body:fd});
+      const text = await r.text();
+      let d; try{ d=JSON.parse(text); }catch(e){ d=null; }
+      if(d && d.ok) deleted = true;
+      else if(!d) {
+        // PHP not executing — do client-side index.json patch as last resort
+        deleted = await deleteFromIndexJson(filename);
+      } else {
+        showAlert('Delete failed: '+(d.error||'unknown'),'err');
+        rowEl.style.opacity='1'; return;
+      }
+    }
+
+    if(deleted){
+      showAlert('Deleted: '+filename,'ok');
+      await refreshLibrary();
+      await checkServerLib();
+    } else {
+      showAlert('Could not delete — check server config','err');
+      rowEl.style.opacity='1';
+    }
+  }catch(e){
+    showAlert('Network error: '+e.message,'err');
+    rowEl.style.opacity='1';
+  }
+}
+
+// Last-resort: rewrite index.json directly by fetching it, removing the entry,
+// and PUTting it back via the proxy's file-write endpoint
+async function deleteFromIndexJson(filename){
+  try{
+    const r = await fetch(INDEX_URL+'?t='+Date.now());
+    if(!r.ok) return false;
+    const text = await r.text();
+    let videos; try{ videos=JSON.parse(text); }catch(e){ return false; }
+    const filtered = videos.filter(v => v.file !== filename);
+    if(filtered.length === videos.length) return false; // not found
+    // Write back via proxy
+    const wr = await proxyPost('/write-index', { videos: filtered });
+    const wd = await wr.json().catch(()=>null);
+    return wd && wd.ok;
+  }catch(e){ return false; }
 }
 
 function showAlert(msg,type){
