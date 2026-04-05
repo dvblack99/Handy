@@ -337,7 +337,7 @@ select { background:var(--surface2); border:1px solid rgba(255,255,255,.15); bor
 // These bypass upload.php entirely so PHP not executing doesn't matter
 const PROXY_TOKEN  = 'Lindsey123!';
 const PROXY_BASE   = '/api/handy';           // nginx proxies this to Python proxy
-const UPLOAD_URL   = 'upload.php';           // still used for chunked uploads if PHP works
+const UPLOAD_URL   = PROXY_BASE+'/upload-chunk';  // proxy handles uploads now
 const SETTINGS_URL = 'save_settings.php';    // still used for settings if PHP works
 const INDEX_URL    = 'videos/index.json';    // direct static file read
 const CHUNK_SIZE   = 2 * 1024 * 1024;
@@ -497,11 +497,11 @@ async function saveSection(section){
 async function checkServer(){
   const el=document.getElementById('php-status');
   try{
-    const r=await fetch(UPLOAD_URL+'?t='+Date.now());
+    const r=await fetch('upload.php?t='+Date.now());
     const text=await r.text();
     let d; try{ d=JSON.parse(text); }catch(e){
       el.className='err';
-      el.textContent='⚠️ upload.php not executing (PHP disabled in nginx for this path). Video upload requires PHP. Delete works via proxy. To fix: add fastcgi_pass for .php in your nginx /handy/ location block.';
+      el.textContent='⚠️ upload.php not executing (PHP disabled). Uploads and deletes work via proxy instead.';
       return;
     }
     el.className=d.ok?'ok':'err';
@@ -513,11 +513,11 @@ async function checkServerLib(){
   const el=document.getElementById('php-status-lib');
   if(!el) return;
   try{
-    const r=await fetch(UPLOAD_URL+'?t='+Date.now());
+    const r=await fetch('upload.php?t='+Date.now());
     const text=await r.text();
     let d; try{ d=JSON.parse(text); }catch(e){
       el.className='err';
-      el.textContent='⚠️ PHP not executing — uploads disabled. Delete still works via proxy.';
+      el.textContent='⚠️ PHP not executing — uploads and deletes work via proxy.';
       return;
     }
     el.className=d.ok?'ok':'err';
@@ -671,7 +671,7 @@ async function uploadChunked(item){
         fd.append('chunk',chunk); fd.append('chunk_index',i);
         fd.append('total_chunks',totalChunks); fd.append('upload_id',uploadId);
         fd.append('filename',filename); fd.append('name',name);
-        const r=await fetch(UPLOAD_URL,{method:'POST',body:fd});
+        const r=await fetch(UPLOAD_URL,{method:'POST',body:fd,headers:{'X-Token':PROXY_TOKEN}});
         if(!r.ok) throw new Error('HTTP '+r.status);
         const d=await r.json();
         if(!d.ok&&!d.chunk_received) throw new Error(d.error||'Chunk failed');
