@@ -27,8 +27,22 @@
 html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text);
   font-family:'Segoe UI',system-ui,sans-serif; -webkit-user-select:none; user-select:none; }
 
+/*
+ * ROTATION WRAPPER — keeps the app always rendering in landscape.
+ * When the phone is portrait (or any non-landscape orientation), #app-root
+ * is rotated + resized via JS so the content fills the screen as landscape.
+ * The TV/HDMI cast always sees a proper landscape image.
+ */
+#app-root {
+  position: fixed;
+  top: 0; left: 0;
+  /* default landscape — width/height set by JS */
+  transform-origin: top left;
+  /* transition smoothed by JS, not CSS, to avoid flicker */
+}
+
 /* PERMISSION */
-#permission-screen { position:fixed; inset:0; display:flex; flex-direction:column;
+#permission-screen { position:absolute; inset:0; display:flex; flex-direction:column;
   align-items:center; justify-content:center; gap:28px; background:var(--bg);
   z-index:1000; padding:32px; text-align:center; }
 #permission-screen h1 { font-size:clamp(2.4rem,9vw,5rem); font-weight:900; color:var(--text);
@@ -41,7 +55,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 /* STATUS BAR */
 #status-bar { display:none; padding:6px 16px; background:rgba(26,26,46,.95);
   border-bottom:1px solid rgba(255,255,255,.08); font-size:.8rem; color:var(--text2);
-  align-items:center; gap:12px; min-height:38px; flex-shrink:0; }
+  align-items:center; gap:12px; min-height:38px; flex-shrink:0; width:100%; }
 #status-bar.show { display:flex; }
 .sdot { width:9px; height:9px; border-radius:50%; background:#333; flex-shrink:0; transition:background .3s; }
 .sdot.ok   { background:var(--green); box-shadow:0 0 6px var(--green); }
@@ -52,7 +66,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 #sbar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
 /* MAIN */
-#main { position:relative; overflow:hidden; display:none; width:100%; height:calc(100vh - 38px); }
+#main { position:relative; overflow:hidden; display:none; width:100%; flex:1; min-height:0; }
 #main.show { display:block; }
 #ui-canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
 #cam-video { position:absolute; top:-9999px; left:-9999px; width:320px; height:240px; }
@@ -62,7 +76,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
   border-radius:12px; overflow:hidden; border:2px solid rgba(108,99,255,.6);
   box-shadow:0 4px 24px rgba(0,0,0,.7); z-index:50; display:none; }
 #cam-preview.show { display:block; }
-#preview-canvas { width:100%; height:100%; transform:scaleX(-1); }
+#preview-canvas { width:100%; height:100%; }
 
 #sound-flash { position:absolute; inset:0; pointer-events:none;
   background:rgba(0,229,160,.1); opacity:0; z-index:60; transition:opacity .1s; }
@@ -76,8 +90,8 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 @keyframes spin { to { transform:rotate(360deg); } }
 #load-msg { color:var(--text2); font-size:1rem; font-weight:500; }
 
-/* Video overlay */
-#video-overlay { position:fixed; inset:0; background:#000; z-index:500;
+/* Video overlay — absolute inside #app-root so it respects the rotation */
+#video-overlay { position:absolute; inset:0; background:#000; z-index:500;
   display:none; flex-direction:column; align-items:center; justify-content:center; }
 #video-overlay.show { display:flex; }
 #full-video { width:100%; height:100%; object-fit:contain; background:#000; }
@@ -97,8 +111,8 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
   color:rgba(255,255,255,.7); font-size:.9rem; font-weight:600; white-space:nowrap; z-index:21; display:none; }
 #video-loading-msg.show { display:block; }
 
-/* Ballz game overlay */
-#ballz-overlay { position:fixed; inset:0; z-index:400; display:none; }
+/* Ballz game overlay — absolute inside #app-root */
+#ballz-overlay { position:absolute; inset:0; z-index:400; display:none; }
 #ballz-overlay.show { display:block; }
 #ballz-canvas { position:absolute; inset:0; width:100%; height:100%; }
 #ballz-cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
@@ -106,14 +120,14 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 #ballz-close { display:none; }
 
 /* Debug */
-#debug { position:fixed; bottom:0; left:0; right:0; background:rgba(0,0,0,.92);
+#debug { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.92);
   color:var(--green); font-family:monospace; font-size:12px; padding:7px 11px 7px 11px;
   z-index:9999; height:50vh; overflow-y:auto; display:none; border-top:2px solid #444; }
 #debug.show { display:block; }
-#debug-toggle { position:fixed; bottom:7px; right:7px; background:rgba(0,0,0,.7);
+#debug-toggle { position:absolute; bottom:7px; right:7px; background:rgba(0,0,0,.7);
   color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
   font-size:11px; cursor:pointer; z-index:9999; touch-action:manipulation; }
-#debug-copy { position:fixed; bottom:7px; right:60px; background:rgba(0,0,0,.7);
+#debug-copy { position:absolute; bottom:7px; right:60px; background:rgba(0,0,0,.7);
   color:#666; border:1px solid #444; border-radius:6px; padding:4px 9px;
   font-size:11px; cursor:pointer; z-index:9999; touch-action:manipulation; display:none; }
 #debug.show ~ #debug-copy { display:block; }
@@ -125,6 +139,8 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 </style>
 </head>
 <body>
+
+<div id="app-root" style="display:flex;flex-direction:column;overflow:hidden;background:var(--bg);">
 
 <div id="debug"></div>
 <button id="debug-toggle">🐛</button>
@@ -163,7 +179,6 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
   <div id="video-status" style="position:absolute;bottom:80px;left:0;right:0;
     text-align:center;color:rgba(255,255,255,.8);font-size:1rem;font-family:monospace;
     z-index:20;padding:0 20px;word-break:break-all;"></div>
-  <!-- iOS tap-to-play prompt — fullscreen, hand hover triggers play -->
   <div id="tap-prompt" style="display:none;position:absolute;inset:0;
     background:rgba(0,0,0,.7);align-items:center;justify-content:center;
     flex-direction:column;gap:20px;z-index:15;cursor:pointer;touch-action:manipulation">
@@ -183,6 +198,8 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
   <button id="ballz-close">✕</button>
 </div>
 
+</div><!-- end #app-root -->
+
 <script src="https://unpkg.com/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
 <script>
 'use strict';
@@ -192,7 +209,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 // ═══════════════════════════════════════════════════════════
 const DEFAULTS = {
   global: { dwellMs:2000, sensitivity:1.8, smoothing:0.18, cursorRadius:40,
-            micOn:false, previewOn:false, scrollZone:0.14, scrollSpeed:5 },
+            micOn:false, previewOn:false, camMount:0, scrollZone:0.14, scrollSpeed:5 },
   videos: { autoplay:true, loop:false, volume:1.0 },
   music:  { volume:1.0 },
   games:  { ballzMaxBalls:5, ballzGravity:0.3, ballzSpawnRate:90 },
@@ -279,8 +296,8 @@ let videoOverlayRaf=null;
 let vocDwell=0, vocDwellStart=null;
 
 function startVideoOverlay(){
-  videoOverlayCanvas.width=window.innerWidth;
-  videoOverlayCanvas.height=window.innerHeight;
+  videoOverlayCanvas.width  = parseInt(appRoot.style.width)  || window.innerWidth;
+  videoOverlayCanvas.height = parseInt(appRoot.style.height) || window.innerHeight;
   let playDwell=0, playDwellStart=null;
   const PLAY_DWELL_MS=300; // 0.3 seconds — easier to trigger
 
@@ -375,8 +392,7 @@ function startVideoOverlay(){
 }
 
 window.addEventListener('resize',()=>{
-  videoOverlayCanvas.width=window.innerWidth;
-  videoOverlayCanvas.height=window.innerHeight;
+  applyRotation();
 });
 const videoLoadingEl=document.getElementById('video-loading');
 const videoLoadingMsg=document.getElementById('video-loading-msg');
@@ -530,10 +546,77 @@ async function loadServerThumb(video){
 // ═══════════════════════════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════════════════════════
-function resize(){
-  canvas.width=mainDiv.offsetWidth; canvas.height=mainDiv.offsetHeight;
-  prevCanvas.width=160; prevCanvas.height=120;
+// ═══════════════════════════════════════════════════════════
+//  ROTATION — lock app to landscape, rotate to match mount
+// ═══════════════════════════════════════════════════════════
+const appRoot = document.getElementById('app-root');
+
+function applyRotation(){
+  // Physical screen dimensions
+  const sw = window.innerWidth;
+  const sh = window.innerHeight;
+
+  // The app always renders in landscape.
+  // appW = the landscape width, appH = the landscape height.
+  // When phone is portrait (sw < sh), we rotate 90° or 270°, and swap w/h.
+  const mount = CFG.camMount || 0; // 0, 90, 180, 270
+
+  // Determine if phone is currently portrait
+  const phonePortrait = sw < sh;
+
+  // App logical size is always landscape
+  const appW = phonePortrait ? sh : sw;
+  const appH = phonePortrait ? sw : sh;
+
+  // Scale to fit screen (in case of non-square rotation)
+  const scale = phonePortrait ? (sw / sh) : 1;
+
+  let deg = 0;
+  if(phonePortrait){
+    // Phone in portrait: need to rotate app 90° or 270° to fill landscape
+    // camMount 0   → phone portrait, cam top=physical top   → rotate app 90° CW  (deg=90)
+    // camMount 90  → phone portrait, cam top=physical right → rotate app 0° (already handled)
+    // camMount 180 → phone portrait, cam top=physical bot   → rotate app 270° CW (deg=270)
+    // camMount 270 → phone portrait, cam top=physical left  → rotate app 180°
+    // Default portrait-without-mount: rotate 90
+    deg = 90;
+    if(mount === 180) deg = 270;
+    else if(mount === 270) deg = 180;
+  } else {
+    // Phone in landscape already
+    if(mount === 180) deg = 180;
+  }
+
+  // Apply transform: rotate from top-left origin, then shift to fill screen
+  let tx = 0, ty = 0;
+  if(deg === 90)  { tx = sw; ty = 0; }
+  if(deg === 180) { tx = sw; ty = sh; }
+  if(deg === 270) { tx = 0;  ty = sh; }
+
+  appRoot.style.width  = appW + 'px';
+  appRoot.style.height = appH + 'px';
+  appRoot.style.transform = `translate(${tx}px,${ty}px) rotate(${deg}deg)`;
+
+  // Resize the canvas to the logical (landscape) app dimensions
+  canvas.width  = appW;
+  canvas.height = appH - 38; // minus status bar
+  prevCanvas.width  = 160;
+  prevCanvas.height = 120;
+
+  // Resize video overlay canvas
+  videoOverlayCanvas.width  = appW;
+  videoOverlayCanvas.height = appH;
+
+  // Resize Ballz canvas if running
+  if(typeof ballzRunning !== 'undefined' && ballzRunning){
+    BC.width  = appW;
+    BC.height = appH;
+  }
+
+  dbg(`Rotation: mount=${mount}° phone=${phonePortrait?'portrait':'landscape'} app=${appW}×${appH} deg=${deg}`);
 }
+
+function resize(){ applyRotation(); }
 
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 
@@ -716,10 +799,23 @@ function render(ts){
     ctx.restore();
   }
 
-  // Camera preview PiP
+  // Camera preview PiP — always show upright regardless of mount
   if(CFG.previewOn&&camVideo.readyState>=2){
-    prevCtx.save(); prevCtx.scale(-1,1);
-    prevCtx.drawImage(camVideo,-160,0,160,120);
+    prevCtx.save();
+    const mount = CFG.camMount || 0;
+    // For 90/270 the camera frame is portrait, so we swap draw dimensions
+    if(mount === 0){
+      prevCtx.scale(-1,1); prevCtx.drawImage(camVideo,-160,0,160,120);
+    } else if(mount === 90){
+      prevCtx.translate(160,0); prevCtx.rotate(Math.PI/2);
+      prevCtx.scale(-1,1); prevCtx.drawImage(camVideo,-120,0,120,160);
+    } else if(mount === 180){
+      prevCtx.translate(160,120); prevCtx.rotate(Math.PI);
+      prevCtx.drawImage(camVideo,0,0,-160,-120);
+    } else if(mount === 270){
+      prevCtx.translate(0,120); prevCtx.rotate(-Math.PI/2);
+      prevCtx.scale(-1,1); prevCtx.drawImage(camVideo,-120,0,120,160);
+    }
     prevCtx.restore();
   }
 
@@ -1132,6 +1228,14 @@ const MAX_BALLS=5;
 
 // ── Coordinate mapping ──────────────────────────────────────
 function mpToCanvas(nx, ny, W, H){
+  // First apply camera mount rotation (same logic as hand tracking)
+  let rx = nx - 0.5, ry = ny - 0.5;
+  const mount = CFG.camMount || 0;
+  if(mount === 90)  { [rx, ry] = [ ry, -rx]; }
+  if(mount === 180) { [rx, ry] = [-rx, -ry]; }
+  if(mount === 270) { [rx, ry] = [-ry,  rx]; }
+  nx = rx + 0.5; ny = ry + 0.5;
+
   const vidW=ballzCam.videoWidth||640, vidH=ballzCam.videoHeight||480;
   const vidAR=vidW/vidH, canAR=W/H;
   let scale, offX=0, offY=0;
@@ -1286,8 +1390,8 @@ function buildBodySegments(){
 async function startBallz(){
   dbgOk('Starting Ballz! (Pose mode)');
   ballzOverlay.classList.add('show');
-  BC.width=window.innerWidth;
-  BC.height=window.innerHeight;
+  BC.width  = parseInt(appRoot.style.width)  || window.innerWidth;
+  BC.height = parseInt(appRoot.style.height) || window.innerHeight;
 
   if(!state.camStream){
     // Camera was stopped for video — re-request
@@ -1473,7 +1577,7 @@ ballzClose.addEventListener('click',stopBallz);
 
 // Resize Ballz canvas on orientation change
 window.addEventListener('resize',()=>{
-  if(ballzRunning){ BC.width=window.innerWidth; BC.height=window.innerHeight; }
+  if(ballzRunning){ applyRotation(); }
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -1495,10 +1599,25 @@ async function initHandTracking(){
 function onHandResults(results){
   if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
     const lm=results.multiHandLandmarks[0];
-    const px=(lm[0].x+lm[9].x)/2,py=(lm[0].y+lm[9].y)/2;
+    let px=(lm[0].x+lm[9].x)/2, py=(lm[0].y+lm[9].y)/2;
+
+    // Remap hand coordinates based on camera mount angle.
+    // MediaPipe gives (px,py) in [0,1] relative to the camera frame.
+    // The camera frame may be rotated relative to the app's landscape canvas,
+    // so we rotate the point around the centre (0.5, 0.5) accordingly.
+    // camMount = physical degrees the camera is rotated clockwise from the
+    // "camera top = app top-left" reference.
+    const mount = CFG.camMount || 0;
+    let rx = px - 0.5, ry = py - 0.5; // centre-relative
+    if(mount === 90)  { [rx, ry] = [ ry, -rx]; }  // rotate CCW 90 (cam rotated 90 CW)
+    if(mount === 180) { [rx, ry] = [-rx, -ry]; }  // flip both
+    if(mount === 270) { [rx, ry] = [-ry,  rx]; }  // rotate CW 90 (cam rotated 270 CW)
+    px = rx + 0.5; py = ry + 0.5;
+
     if(!state.handVisible) dbgOk(`Hand (${px.toFixed(2)},${py.toFixed(2)})`);
-    state.cx=.5-(px-.5)*CFG.sensitivity;
-    state.cy=.5+(py-.5)*CFG.sensitivity;
+    // Mirror X (camera is front-facing, so right hand appears on left)
+    state.cx = .5 - (px - .5) * CFG.sensitivity;
+    state.cy = .5 + (py - .5) * CFG.sensitivity;
     state.handVisible=true;
     handDot.className='sdot ok';
     document.getElementById('hand-lbl').textContent='Hand ✓';
@@ -1598,8 +1717,8 @@ function togglePreview(){
 
 function flashMsg(msg){
   const el=document.createElement('div');
-  el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(108,99,255,.95);color:#fff;padding:14px 32px;border-radius:40px;font-size:1.1rem;font-weight:700;z-index:300;pointer-events:none;white-space:nowrap;animation:fadeUp .3s ease forwards;box-shadow:0 4px 24px rgba(0,0,0,.5);';
-  el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2500);
+  el.style.cssText='position:absolute;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(108,99,255,.95);color:#fff;padding:14px 32px;border-radius:40px;font-size:1.1rem;font-weight:700;z-index:300;pointer-events:none;white-space:nowrap;animation:fadeUp .3s ease forwards;box-shadow:0 4px 24px rgba(0,0,0,.5);';
+  el.textContent=msg; document.getElementById('app-root').appendChild(el); setTimeout(()=>el.remove(),2500);
 }
 
 // ═══════════════════════════════════════════════════════════

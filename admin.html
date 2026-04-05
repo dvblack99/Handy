@@ -127,6 +127,11 @@ select { background:var(--surface2); border:1px solid rgba(255,255,255,.15); bor
 .alert.err { background:rgba(255,101,132,.1); border:1px solid rgba(255,101,132,.3); color:var(--red); }
 .refresh-btn { background:none; border:1px solid rgba(255,255,255,.14); color:var(--muted);
   padding:2px 8px; border-radius:6px; cursor:pointer; font-size:.7rem; margin-left:8px; }
+
+.mount-btn { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12);
+  border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer;
+  font-size:.9rem; font-weight:700; transition:all .2s; color:var(--text2); }
+.mount-opt input:checked + .mount-btn { background:rgba(108,99,255,.2); border-color:var(--accent); color:var(--accent); }
 </style>
 </head>
 <body>
@@ -190,6 +195,30 @@ select { background:var(--surface2); border:1px solid rgba(255,255,255,.15); bor
     <div class="setting-row">
       <div class="setting-label"><div class="label-title">Microphone (sound trigger)</div><div class="label-desc">Enable sound-based selection</div></div>
       <div class="setting-control"><label class="toggle"><input type="checkbox" id="g-mic"><span class="toggle-slider"></span></label></div>
+    </div>
+    <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:10px">
+      <div class="setting-label">
+        <div class="label-title">Camera Mount Angle</div>
+        <div class="label-desc">How many degrees clockwise the phone is rotated from normal landscape. App UI always stays landscape for TV/HDMI.</div>
+      </div>
+      <div style="display:flex;gap:8px;width:100%;flex-wrap:wrap">
+        <label style="flex:1;min-width:60px" class="mount-opt" data-val="0">
+          <input type="radio" name="camMount" value="0" id="mount-0" style="display:none">
+          <div class="mount-btn" id="mbtn-0">0°<div style="font-size:.65rem;opacity:.7;margin-top:2px">Normal</div></div>
+        </label>
+        <label style="flex:1;min-width:60px" class="mount-opt" data-val="90">
+          <input type="radio" name="camMount" value="90" id="mount-90" style="display:none">
+          <div class="mount-btn" id="mbtn-90">90°<div style="font-size:.65rem;opacity:.7;margin-top:2px">Rotated right</div></div>
+        </label>
+        <label style="flex:1;min-width:60px" class="mount-opt" data-val="180">
+          <input type="radio" name="camMount" value="180" id="mount-180" style="display:none">
+          <div class="mount-btn" id="mbtn-180">180°<div style="font-size:.65rem;opacity:.7;margin-top:2px">Upside-down</div></div>
+        </label>
+        <label style="flex:1;min-width:60px" class="mount-opt" data-val="270">
+          <input type="radio" name="camMount" value="270" id="mount-270" style="display:none">
+          <div class="mount-btn" id="mbtn-270">270°<div style="font-size:.65rem;opacity:.7;margin-top:2px">Rotated left</div></div>
+        </label>
+      </div>
     </div>
   </div>
   <button class="save-btn" onclick="saveSection('global')">💾 Save Global Settings</button>
@@ -388,6 +417,10 @@ async function loadSettings(){
     if(g.smoothing)    setRange('g-smooth',g.smoothing);
     if(g.previewOn!==undefined) document.getElementById('g-preview').checked=g.previewOn;
     if(g.micOn!==undefined)     document.getElementById('g-mic').checked=g.micOn;
+    if(g.camMount!==undefined){
+      const el=document.getElementById('mount-'+g.camMount);
+      if(el) el.checked=true;
+    }
     // Videos
     const v=s.videos||{};
     if(v.volume!==undefined)   setRange('v-volume',v.volume);
@@ -430,6 +463,7 @@ function buildSettings(){
       smoothing:  getVal('g-smooth'),
       previewOn:  getChk('g-preview'),
       micOn:      getChk('g-mic'),
+      camMount:   parseInt(document.querySelector('input[name="camMount"]:checked')?.value || '0'),
       scrollZone: 0.14, scrollSpeed: 5,
     },
     videos:{
@@ -485,20 +519,23 @@ async function checkServer(){
   const el=document.getElementById('php-status');
   try{
     const r=await fetch(UPLOAD_URL+'?t='+Date.now());
-    const d=await r.json();
+    const text=await r.text();
+    let d; try{ d=JSON.parse(text); }catch(e){ el.className='err'; el.textContent='❌ Server returned non-JSON (HTTP '+r.status+') — check upload.php path/permissions'; return; }
     el.className=d.ok?'ok':'err';
-    el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library`:'❌ '+JSON.stringify(d);
-  }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php'; }
+    el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library (writable: ${d.writable})`:'❌ '+JSON.stringify(d);
+  }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php — '+e.message; }
 }
 
 async function checkServerLib(){
   const el=document.getElementById('php-status-lib');
+  if(!el) return;
   try{
     const r=await fetch(UPLOAD_URL+'?t='+Date.now());
-    const d=await r.json();
+    const text=await r.text();
+    let d; try{ d=JSON.parse(text); }catch(e){ el.className='err'; el.textContent='❌ Server returned non-JSON (HTTP '+r.status+')'; return; }
     el.className=d.ok?'ok':'err';
-    el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library`:'❌ '+JSON.stringify(d);
-  }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php'; }
+    el.textContent=d.ok?`✓ Server ready — ${d.videos} video${d.videos!==1?'s':''} in library (writable: ${d.writable})`:'❌ '+JSON.stringify(d);
+  }catch(e){ el.className='err'; el.textContent='❌ Cannot reach upload.php — '+e.message; }
 }
 
 // ── COMPRESSION OPTIONS ───────────────────────────────────────
@@ -666,17 +703,27 @@ async function uploadChunked(item){
 document.getElementById('refresh-btn').addEventListener('click',refreshLibrary);
 async function refreshLibrary(){
   const listEl=document.getElementById('video-list');
+  listEl.innerHTML='<div class="vl-empty">Loading…</div>';
   try{
     const r=await fetch(INDEX_URL+'?t='+Date.now());
+    // If 404 (no index yet) treat as empty library — don't try to parse HTML error page
+    if(r.status===404){listEl.innerHTML='<div class="vl-empty">No videos yet.</div>';return;}
     if(!r.ok) throw new Error('HTTP '+r.status);
-    const videos=await r.json();
-    if(!videos.length){listEl.innerHTML='<div class="vl-empty">No videos yet.</div>';return;}
+    // Guard against server returning HTML instead of JSON
+    const text=await r.text();
+    let videos;
+    try{ videos=JSON.parse(text); }
+    catch(e){ listEl.innerHTML='<div class="vl-empty">No videos yet.</div>'; return; }
+    if(!Array.isArray(videos)||!videos.length){listEl.innerHTML='<div class="vl-empty">No videos yet.</div>';return;}
     listEl.innerHTML='';
     videos.forEach(v=>{
       const el=document.createElement('div'); el.className='vl-item';
-      const ts=v.thumb?`videos/${v.thumb}#t=0`:`videos/${v.file}#t=2`;
+      // Use server thumbnail if available, otherwise show a plain poster
+      const thumbSrc = v.thumb ? 'videos/'+v.thumb : null;
       el.innerHTML=`
-        <video class="vl-thumb" src="${ts}" muted preload="metadata"></video>
+        ${thumbSrc
+          ? `<img class="vl-thumb" src="${thumbSrc}" onerror="this.style.background='#222'">`
+          : `<div class="vl-thumb" style="background:#222;display:flex;align-items:center;justify-content:center;font-size:1.4rem">🎬</div>`}
         <div class="vl-info"><div class="vl-name">${v.name}</div><div class="vl-file">${v.file}</div></div>
         <button class="vl-del" data-file="${v.file}">🗑</button>
       `;
@@ -685,7 +732,7 @@ async function refreshLibrary(){
     listEl.querySelectorAll('.vl-del').forEach(btn=>{
       btn.addEventListener('click',()=>deleteVideo(btn.dataset.file,btn.closest('.vl-item')));
     });
-  }catch(e){listEl.innerHTML='<div class="vl-empty">No videos uploaded yet.</div>';}
+  }catch(e){listEl.innerHTML='<div class="vl-empty">Error: '+e.message+'</div>';}
 }
 
 async function deleteVideo(filename,rowEl){
@@ -694,10 +741,11 @@ async function deleteVideo(filename,rowEl){
   try{
     const fd=new FormData(); fd.append('action','delete'); fd.append('file',filename);
     const r=await fetch(UPLOAD_URL,{method:'POST',body:fd});
-    const d=await r.json();
+    const text=await r.text();
+    let d; try{ d=JSON.parse(text); }catch(e){ showAlert('Server error (non-JSON response). Check upload.php permissions.','err'); rowEl.style.opacity='1'; return; }
     if(d.ok){showAlert('Deleted: '+filename,'ok');await refreshLibrary();await checkServerLib();}
-    else{showAlert('Delete failed: '+(d.error||''),'err');rowEl.style.opacity='1';}
-  }catch(e){showAlert('Error: '+e.message,'err');rowEl.style.opacity='1';}
+    else{showAlert('Delete failed: '+(d.error||'unknown error'),'err');rowEl.style.opacity='1';}
+  }catch(e){showAlert('Network error: '+e.message,'err');rowEl.style.opacity='1';}
 }
 
 function showAlert(msg,type){
