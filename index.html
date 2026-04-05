@@ -156,7 +156,7 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
 
 <!-- Video player -->
 <div id="video-overlay">
-  <video id="full-video" playsinline webkit-playsinline></video>
+  <video id="full-video" playsinline webkit-playsinline x-webkit-airplay="allow"></video>
   <button id="close-video">✕</button>
   <canvas id="video-overlay-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:12"></canvas>
   <div id="video-loading"><div id="video-loading-bar"></div></div>
@@ -169,10 +169,10 @@ html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); colo
     flex-direction:column;gap:20px;z-index:15;cursor:pointer;touch-action:manipulation">
     <div style="font-size:6rem">▶️</div>
     <div style="color:#fff;font-size:1.8rem;font-weight:800;text-align:center;
-      text-shadow:0 2px 12px rgba(0,0,0,.9);padding:0 32px">
-      Tap or hover to play
+      text-shadow:0 2px 12px rgba(0,0,0,.9);padding:0 32px" id="tap-prompt-title">
+      Tap to play with sound
     </div>
-    <div style="color:rgba(255,255,255,.6);font-size:1rem">with sound</div>
+    <div style="color:rgba(255,255,255,.6);font-size:1.1rem;font-weight:600" id="tap-prompt-name"></div>
   </div>
 </div>
 
@@ -300,9 +300,9 @@ function startVideoOverlay(){
       playDwell=Math.min((ts-playDwellStart)/PLAY_DWELL_MS,1);
       if(playDwell>=1){
         playDwellStart=null; playDwell=0;
-        tapPrompt.style.display='none';
-        fullVideo.muted=false; fullVideo.volume=1.0;
-        fullVideo.play().then(()=>dbgOk('Hand-triggered play')).catch(e=>dbgErr('Hand play: '+e.message));
+        // Dispatch a real click so the click handler runs as a user gesture chain
+        // (rAF itself is not a user gesture on iOS, so we cannot call play() here directly)
+        videoOverlay.click();
       }
       // Draw filling circle under cursor as visual feedback
       vocCtx.save();
@@ -848,63 +848,90 @@ let audioUnlocked = false;
 function vstat(msg){ const el=document.getElementById('video-status'); if(el) el.textContent=msg; dbgOk(msg); }
 function vstatErr(msg){ const el=document.getElementById('video-status'); if(el){ el.textContent=msg; el.style.color='#ff6584'; } dbgErr(msg); }
 
+// Track the 'ended' listener so we can remove it before re-adding
+let _videoEndedHandler = null;
+
 function playVideo(src, name){
   if(!src){ flashMsg('No file yet'); return; }
 
-  // STOP CAMERA — iOS cannot play two video streams at once
+  // STOP CAMERA — iOS cannot run camera + video decode simultaneously
   camVideo.pause();
-  if(state.camStream) state.camStream.getTracks().forEach(t=>t.enabled=false);
+  if(state.camStream){
+    // Fully stop tracks (not just disable) so iOS frees the decode pipeline
+    state.camStream.getTracks().forEach(t=>t.stop());
+    state.camStream = null;
+  }
 
+  // Tear down previous video completely
+  if(_videoEndedHandler){
+    fullVideo.removeEventListener('ended', _videoEndedHandler);
+    _videoEndedHandler = null;
+  }
   fullVideo.pause();
   fullVideo.onerror = null;
   fullVideo.oncanplay = null;
   fullVideo.onloadedmetadata = null;
+  fullVideo.onwaiting = null;
+  fullVideo.onplaying = null;
+  fullVideo.removeAttribute('src');
+  fullVideo.load(); // flush previous resource
 
   videoOverlay.classList.add('show');
   tapPrompt.style.display = 'flex';
-  tapPrompt.querySelector('div:last-child').textContent = name;
+  const tapNameEl = document.getElementById('tap-prompt-name');
+  if(tapNameEl) tapNameEl.textContent = name;
   videoLoadingEl.classList.remove('show');
-  vstat('Starting...');
+  vstat('Loading…');
 
-  fullVideo.muted = true;
+  // Do NOT set muted=false yet — iOS audio requires the play() call itself
+  // to originate from a direct user gesture (the tap). We set up the src
+  // here so the browser can start buffering, but we do NOT call play().
+  // The tap handler calls play() with muted=false directly.
+  fullVideo.muted = true;        // buffer silently
   fullVideo.volume = 1.0;
   fullVideo.playsInline = true;
-  fullVideo.autoplay = true;
   fullVideo.preload = 'auto';
+  // Do NOT set autoplay — we want the tap to be the play gesture
+  fullVideo.removeAttribute('autoplay');
   fullVideo.src = src;
-  fullVideo.load();
+  // Do NOT call fullVideo.load() here — setting src already starts the fetch.
+  // An extra load() call can reset the network state on iOS and cause stalls.
 
   fullVideo.onerror = ()=>{
     const c = fullVideo.error ? fullVideo.error.code : '?';
-    vstatErr('Error code='+c);
+    vstatErr('Load error code='+c+' — check file format/path');
   };
 
   fullVideo.onloadedmetadata = ()=>{
-    vstat('Ready — tap for sound');
+    vstat('Ready — tap ▶️ for sound');
   };
 
-  fullVideo.oncanplay = ()=>{
-    fullVideo.oncanplay = null;
-    vstat('canplay OK');
-    fullVideo.play().catch(e=>vstat('Tap to start'));
-  };
+  // Show a spinner while buffering after the user starts playback
+  fullVideo.onwaiting = ()=>{ videoLoadingEl.classList.add('show'); };
+  fullVideo.onplaying = ()=>{ videoLoadingEl.classList.remove('show'); };
 
-  fullVideo.addEventListener('playing', ()=>{
-    vstat('Playing! Tap for sound');
-  }, {once:true});
+  _videoEndedHandler = ()=>closeVideoPlayer();
+  fullVideo.addEventListener('ended', _videoEndedHandler);
 
-  fullVideo.addEventListener('ended', closeVideoPlayer, {once:true});
   startVideoOverlay();
 }
 
-// Tap anywhere to unmute
+// Tap anywhere on the overlay (or hand-dwell triggers this path via tapPrompt click)
 videoOverlay.addEventListener('click', ()=>{
   if(tapPrompt.style.display !== 'none'){
     tapPrompt.style.display = 'none';
+    // This click IS the user gesture — play with audio from the start.
+    // Setting muted=false before play() is the correct iOS pattern.
     fullVideo.muted = false;
     fullVideo.volume = 1.0;
-    if(fullVideo.paused) fullVideo.play().catch(e=>vstatErr('Play: '+e.message));
-    vstat('Unmuted!');
+    fullVideo.play().then(()=>{
+      vstat('Playing ▶️');
+    }).catch(e=>{
+      vstatErr('Play failed: '+e.message);
+      // Fallback: try muted play so the video at least shows
+      fullVideo.muted = true;
+      fullVideo.play().catch(()=>{});
+    });
   }
 });
 
@@ -915,18 +942,34 @@ function onVideoProgress(){}
 
 function closeVideoPlayer(){
   fullVideo.pause();
+  if(_videoEndedHandler){
+    fullVideo.removeEventListener('ended', _videoEndedHandler);
+    _videoEndedHandler = null;
+  }
+  fullVideo.onerror = null;
+  fullVideo.oncanplay = null;
+  fullVideo.onloadedmetadata = null;
+  fullVideo.onwaiting = null;
+  fullVideo.onplaying = null;
   fullVideo.removeAttribute('src');
   fullVideo.load();
-  fullVideo.onerror = null;
   videoOverlay.classList.remove('show');
   tapPrompt.style.display = 'none';
   videoLoadingEl.classList.remove('show');
   if(videoOverlayRaf){ cancelAnimationFrame(videoOverlayRaf); videoOverlayRaf=null; }
   vocCtx.clearRect(0,0,videoOverlayCanvas.width,videoOverlayCanvas.height);
-  // RESTART CAMERA
-  if(state.camStream) state.camStream.getTracks().forEach(t=>t.enabled=true);
-  camVideo.play().catch(()=>{});
-  dbgOk('Video closed');
+  // RESTART CAMERA — tracks were fully stopped so we must re-request
+  dbgOk('Video closed — restarting camera…');
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false
+  }).then(stream=>{
+    state.camStream = stream;
+    camVideo.srcObject = stream;
+    camVideo.play().catch(()=>{});
+    dbgOk('Camera restarted');
+  }).catch(e=>{
+    dbgErr('Camera restart failed: '+e.message);
+  });
 }
 closeVideoBtn.addEventListener('click', closeVideoPlayer);
 
@@ -1246,6 +1289,16 @@ async function startBallz(){
   BC.width=window.innerWidth;
   BC.height=window.innerHeight;
 
+  if(!state.camStream){
+    // Camera was stopped for video — re-request
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+      state.camStream=s;
+      camVideo.srcObject=s;
+      camVideo.play().catch(()=>{});
+    }catch(e){ dbgErr('Ballz cam: '+e.message); }
+  }
   if(state.camStream){
     ballzCam.srcObject=state.camStream;
     await ballzCam.play().catch(()=>{});
